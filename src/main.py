@@ -2,7 +2,6 @@ from json.decoder import JSONDecodeError
 from http.client import RemoteDisconnected
 from typing import Tuple
 import requests
-import numpy as np
 from PIL import Image
 from io import BytesIO
 import json
@@ -10,6 +9,9 @@ import time
 import os
 import math
 import sys
+from threading import Thread, Event
+from multiprocessing import Process
+from rgbmatrix import RGBMatrix, RGBMatrixOptions
 
 host = ""
 path = ""
@@ -75,23 +77,36 @@ def download(lat: float, lon: float, z: int, dim: Tuple[int, int], final_size: T
         for j in range(bounds[1], bounds[3] + 1):
             to_download.append((x + i, y + j))
     image_dims = (bounds[2] + 1 - bounds[0], bounds[3] + 1 - bounds[1])
-    images = []
-    for i in range(len(to_download)):
-        coords = to_download[i]
+    
+    images = [{"coords": coords, "image": None} for coords in to_download]
+
+    def helper(coords):
         r = requests.get(tileXYURL.format(**globals(), x=coords[0], y=coords[1]))
         image = BytesIO()
         for chunk in r:
             image.write(chunk)
         image.seek(0)
-        images.append(Image.open(image))
+        for image_obj in images:
+            if image_obj["coords"] == coords:
+                image_obj["image"] = Image.open(image)
+
+    download_threads = []
+    for image in images:
+        download_threads.append(Thread(target=helper, args=(image["coords"],)))
+        download_threads[-1].start()
+
+    for thread in download_threads:
+        thread.join() 
 
     combined = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     for i, image in enumerate(images):
-        combined.paste(image, ((i // image_dims[1]) * 256, (i % image_dims[1]) * 256))
-        image.close()
+        combined.paste(image["image"], ((i // image_dims[1]) * 256, (i % image_dims[1]) * 256))
+        image["image"].close()
+    
     resized = remove_alpha(combined.crop(map(int, absbounds)).resize(final_size), (0, 0, 0))
     combined.close()
     return resized
+
 
 
 def build_cache():
@@ -164,17 +179,57 @@ def update_cache():
         print(e, file=sys.stderr)
     return 0
 
+def get_cache():
+    #return ["test_image.png"]
+    return sorted(["cache/" + name for name in os.listdir("cache") if name != "nowcast"] + ["cache/nowcast/" + name for name in os.listdir("cache/nowcast/")])
+
+def display():
+    options = RGBMatrixOptions()
+    options.cols = 64
+    options.rows = 32
+    options.chain_length = 2
+    options.gpio_slowdown = 2
+    matrix = RGBMatrix(options=options)
+    stop = Event()
+    def loop():
+        next = get_cache()[0]
+        canvas = matrix.CreateFrameCanvas()
+        while not stop.wait(5):
+            img = Image.open(next).convert("RGB")
+            time.sleep(0.1)
+            cache = get_cache()
+            next = cache[(cache.index(next) + 1) % len(cache)]
+            for i in range(128):
+                for j in range(32):
+                    pixel = img.getpixel((i if i < 64 else 63 - (i % 64), j if i < 64 else 63 - j))
+                    canvas.SetPixel(i, j, pixel[0], pixel[1], pixel[2])
+            canvas = matrix.SwapOnVSync(canvas)
+        matrix.Clear()
+
+    display_process = Thread(target=loop)
+    display_process.daemon = True
+    return stop.set, display_process
+
+
 def main():
+    print("{} [INFO] Initializing matrix...".format(int(time.time())))
+    stop, matrix_thread = display()
+    print("{} [INFO] Building cache...".format(int(time.time())))
     build_cache()
     print("{} [INFO] Built cache".format(int(time.time())))
-    while True:
-        time.sleep(60)
-        try:
-            updates = update_cache()
-            print("{} [INFO] Updated cache ({} files affected)".format(int(time.time()), updates))
-        except Exception as e:
-            print("[ERROR] ", file=sys.stderr, end='')
-            print(e, file=sys.stderr)
+    print("{} [INFO] Starting display...".format(int(time.time())))
+    try:
+        matrix_thread.start()
+        while True:
+            time.sleep(60)
+            try:
+                updates = update_cache()
+                print("{} [INFO] Updated cache ({} files affected)".format(int(time.time()), updates))
+            except Exception as e:
+                print("[ERROR] ", file=sys.stderr, end='')
+                print(e, file=sys.stderr)
+    finally:
+        stop()
 
 
 def remove_alpha(image: Image.Image, color: tuple=(255, 255, 255)):
