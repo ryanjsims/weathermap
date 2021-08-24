@@ -11,7 +11,9 @@ import math
 import sys
 from threading import Thread, Event
 from multiprocessing import Process
-from rgbmatrix import RGBMatrix, RGBMatrixOptions
+from rgbmatrix import RGBMatrix, RGBMatrixOptions, graphics
+from datetime import datetime
+from dateutil.tz import tzlocal, tzutc
 
 host = ""
 path = ""
@@ -22,7 +24,7 @@ z = 9                           #zoom level
 color = 4                       #Weather channel colors
 options = "0_0"                 #smoothed with no snow
 dimensions = (200000, 200000)   #dimensions of final image in meters
-grid_size = (64, 64)            #Number of LEDs in matrix rows and columns
+img_size = (64, 64)            #Number of LEDs in matrix rows and columns
 mapsURL = "https://api.rainviewer.com/public/weather-maps.json"
 tileURL = "{host}{path}/{size}/{z}/{lat}/{lon}/{color}/{options}.png"
 tileXYURL = "{host}{path}/{size}/{z}/{x}/{y}/{color}/{options}.png"
@@ -43,6 +45,7 @@ def scantree(path):
         else:
             yield entry
 
+
 def deg2num(lat_deg, lon_deg, zoom, dec = []):
     assert 0 <= zoom <= 22, "Use a zoom level between 0 and 22, inclusive"
     lat_rad = math.radians(lat_deg)
@@ -52,6 +55,7 @@ def deg2num(lat_deg, lon_deg, zoom, dec = []):
     dec.append(xtile - int(xtile))
     dec.append(ytile - int(ytile))
     return (int(xtile), int(ytile))
+
 
 def download(lat: float, lon: float, z: int, dim: Tuple[int, int], final_size: Tuple[int, int]) -> Image.Image:
     dec = []
@@ -108,7 +112,6 @@ def download(lat: float, lon: float, z: int, dim: Tuple[int, int], final_size: T
     return resized
 
 
-
 def build_cache():
     global host, path, last_update
     for file in scantree("cache"):
@@ -122,16 +125,17 @@ def build_cache():
         host = data["host"]
         for snapshot in data["radar"]["past"]:
             path = snapshot["path"]
-            img = download(lat, lon, z, dimensions, grid_size)
+            img = download(lat, lon, z, dimensions, img_size)
             img.save("cache/" + str(snapshot["time"]) + ".png")
             timestamps.append(snapshot["time"])
         for nowcast in data["radar"]["nowcast"]:
             path = nowcast["path"]
-            img = download(lat, lon, z, dimensions, grid_size)
+            img = download(lat, lon, z, dimensions, img_size)
             img.save("cache/nowcast/" + str(nowcast["time"]) + ".png")
     except JSONDecodeError as e:
         print("[ERROR] Unable to decode weather maps json:", file=sys.stderr)
         print(e, file=sys.stderr)
+
 
 def update_cache():
     global host, path, last_update
@@ -149,13 +153,13 @@ def update_cache():
             if snapshot["time"] in timestamps:
                 continue
             path = snapshot["path"]
-            img = download(lat, lon, z, dimensions, grid_size)
+            img = download(lat, lon, z, dimensions, img_size)
             img.save("cache/" + str(snapshot["time"]) + ".png")
             timestamps.append(snapshot["time"])
             updates += 1
         for nowcast in data["radar"]["nowcast"]:
             path = nowcast["path"]
-            img = download(lat, lon, z, dimensions, grid_size)
+            img = download(lat, lon, z, dimensions, img_size)
             img.save("cache/nowcast/" + str(nowcast["time"]) + ".png")
             updates += 1
         webtimestamps = [snapshot["time"] for snapshot in data["radar"]["past"]]
@@ -179,9 +183,32 @@ def update_cache():
         print(e, file=sys.stderr)
     return 0
 
+
 def get_cache():
     #return ["test_image.png"]
-    return sorted(["cache/" + name for name in os.listdir("cache") if name != "nowcast"] + ["cache/nowcast/" + name for name in os.listdir("cache/nowcast/")])
+    return sorted(
+        [{"path": "cache/" + name, "nowcast": False} for name in os.listdir("cache") if name != "nowcast"] + [{"path": "cache/nowcast/" + name, "nowcast": True} for name in os.listdir("cache/nowcast/")],
+        key = lambda item: item["path"])
+
+
+def grid_to_img(coord):
+    to_return = [0, 0]
+    if coord[0] < img_size[0]:
+        to_return = coord
+    else:
+        to_return[0] = (img_size[0] - 1) - (coord[0] % img_size[0])
+        to_return[1] = (img_size[1] - 1) - coord[1]
+    return tuple(to_return)        
+
+def img_to_grid(coord):
+    to_return = [0, 0]
+    if coord[1] < (img_size[1] // 2):
+        to_return = coord
+    else:
+        to_return[0] = (img_size[0] * 2 - 1) - coord[0]
+        to_return[1] = (img_size[1] - 1) - coord[1]
+    return tuple(to_return)
+
 
 def display():
     options = RGBMatrixOptions()
@@ -191,18 +218,30 @@ def display():
     options.gpio_slowdown = 2
     matrix = RGBMatrix(options=options)
     stop = Event()
+    font = graphics.Font()
+    font.LoadFont("fonts/4x6.bdf")
     def loop():
+        past_color = graphics.Color(255, 255, 255)
+        future_color = graphics.Color(255, 0, 255)
         next = get_cache()[0]
         canvas = matrix.CreateFrameCanvas()
         while not stop.wait(5):
-            img = Image.open(next).convert("RGB")
+            img = Image.open(next["path"]).convert("RGB")
+            dt = datetime.fromtimestamp(int(next["path"].split(".")[0].split("/")[-1]), tz=tzutc()).astimezone(tzlocal())
+            timestr = dt.strftime("%H:%M")
+            datestr = dt.strftime("%m-%d")
             time.sleep(0.1)
             cache = get_cache()
+            color = past_color
+            if next["nowcast"]:
+                color = future_color
             next = cache[(cache.index(next) + 1) % len(cache)]
             for i in range(128):
                 for j in range(32):
-                    pixel = img.getpixel((i if i < 64 else 63 - (i % 64), j if i < 64 else 63 - j))
+                    pixel = img.getpixel(grid_to_img((i, j)))
                     canvas.SetPixel(i, j, pixel[0], pixel[1], pixel[2])
+            graphics.DrawText(canvas, font, 2, 6, color, timestr)
+            graphics.DrawText(canvas, font, 2, 12, color, datestr)
             canvas = matrix.SwapOnVSync(canvas)
         matrix.Clear()
 
