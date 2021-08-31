@@ -1,3 +1,5 @@
 *.png
 __pycache__
 *.bdf
+instance/
+*.log
