@@ -1,20 +1,74 @@
+#!/usr/bin/python3.7
+
+# /etc/init.d/weathermap.py
+### BEGIN INIT INFO
+# Provides:          weathermap.py
+# Required-Start:    $dhcpcd $network $remote_fs $syslog
+# Required-Stop:     $dhcpcd $network $remote_fs $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Display weathermap on boot
+# Description:       Displays a weathermap on the connected led grid
+### END INIT INFO
+
 from json.decoder import JSONDecodeError
 from http.client import RemoteDisconnected
 from typing import Tuple
 import requests
 from PIL import Image
 from io import BytesIO
-import json
 import time
 import os
 import math
+import grp, pwd
 import sys
 from threading import Thread, Event
 from multiprocessing import Process
 from rgbmatrix import RGBMatrix, RGBMatrixOptions, graphics
 from datetime import datetime
 from dateutil.tz import tzlocal, tzutc
+import logging as log
+from logging.handlers import RotatingFileHandler
 
+MB = 1024 * 1024
+WORKING_DIRECTORY = "/var/local/weathermap"
+
+class BraceMessage:
+    def __init__(self, fmt, *args, **kwargs):
+        self.fmt = fmt
+        self.args = args
+        self.kwargs = kwargs
+
+    def __str__(self):
+        return self.fmt.format(*self.args, **self.kwargs)
+
+__ = BraceMessage
+
+class RedirectingRotatingFileHandler(RotatingFileHandler):
+    def __init__(self, filename, mode='a', maxBytes=0, backupCount=0, encoding=None, delay=False, redirectstderr=False, redirectstdout=False):
+        super().__init__(filename, mode, maxBytes=maxBytes, backupCount=backupCount, encoding=encoding, delay=delay)
+        self.stderr = redirectstderr
+        self.stdout = redirectstdout
+        self.doRedirect()
+
+    def doRollover(self) -> None:
+        super().doRollover()
+        self.doRedirect()
+    
+    def doRedirect(self):
+        if self.stderr:
+            sys.stderr = self.stream
+        if self.stdout:
+            sys.stdout = self.stream
+
+
+log.basicConfig(
+    level=log.INFO,
+    format="[{asctime}] [{levelname}]: {message}", 
+    datefmt="%Y-%m-%d %H:%M:%S %Z", 
+    style='{',
+    handlers=[RedirectingRotatingFileHandler("/var/log/weathermap.log", maxBytes=25*MB, backupCount=5, redirectstderr=True, redirectstdout=True)]
+)
 host = ""
 path = ""
 size = 256
@@ -112,13 +166,19 @@ def download(lat: float, lon: float, z: int, dim: Tuple[int, int], final_size: T
     return resized
 
 
+def save_with_perms(path: str, image: Image.Image, username: str, groupname: str, perms: int):
+    image.save(path)
+    os.chown(path, pwd.getpwnam(username).pw_uid, grp.getgrnam(groupname).gr_gid)
+    os.chmod(path, perms)
+
+
 def build_cache():
     global host, path, last_update
     for file in scantree("cache"):
         if file.is_file():
             os.remove(file.path)
-    r = requests.get(mapsURL)
     try:
+        r = requests.get(mapsURL)
         data = r.json()
 
         last_update = data["generated"]
@@ -126,21 +186,20 @@ def build_cache():
         for snapshot in data["radar"]["past"]:
             path = snapshot["path"]
             img = download(lat, lon, z, dimensions, img_size)
-            img.save("cache/" + str(snapshot["time"]) + ".png")
+            save_with_perms("cache/" + str(snapshot["time"]) + ".png", img, "daemon", "daemon", 0o660)
             timestamps.append(snapshot["time"])
         for nowcast in data["radar"]["nowcast"]:
             path = nowcast["path"]
             img = download(lat, lon, z, dimensions, img_size)
-            img.save("cache/nowcast/" + str(nowcast["time"]) + ".png")
+            save_with_perms("cache/nowcast/" + str(nowcast["time"]) + ".png", img, "daemon", "daemon", 0o660)
     except JSONDecodeError as e:
-        print("[ERROR] Unable to decode weather maps json:", file=sys.stderr)
-        print(e, file=sys.stderr)
+        log.error("Unable to decode weathermaps json: %(exc_info)s", exc_info=e)
 
 
 def update_cache():
     global host, path, last_update
-    r = requests.get(mapsURL)
     try:
+        r = requests.get(mapsURL)
         data = r.json()
         if data["generated"] == last_update:
             return 0
@@ -154,13 +213,13 @@ def update_cache():
                 continue
             path = snapshot["path"]
             img = download(lat, lon, z, dimensions, img_size)
-            img.save("cache/" + str(snapshot["time"]) + ".png")
+            save_with_perms("cache/" + str(snapshot["time"]) + ".png", img, "daemon", "daemon", 0o660)
             timestamps.append(snapshot["time"])
             updates += 1
         for nowcast in data["radar"]["nowcast"]:
             path = nowcast["path"]
             img = download(lat, lon, z, dimensions, img_size)
-            img.save("cache/nowcast/" + str(nowcast["time"]) + ".png")
+            save_with_perms("cache/nowcast/" + str(nowcast["time"]) + ".png", img, "daemon", "daemon", 0o660)
             updates += 1
         webtimestamps = [snapshot["time"] for snapshot in data["radar"]["past"]]
         i = 0
@@ -168,19 +227,17 @@ def update_cache():
             if timestamps[i] in webtimestamps:
                 i += 1
                 continue
-            os.remove("cache/" + str(timestamps[i]) + ".png")
-            timestamps.pop(i)
-            updates += 1
+            if(os.path.exists("cache/" + str(timestamps[i]) + ".png")):
+                os.remove("cache/" + str(timestamps[i]) + ".png")
+                timestamps.pop(i)
+                updates += 1
         return updates
     except JSONDecodeError as e:
-        print("[ERROR] Unable to decode weather maps json:", file=sys.stderr)
-        print(e, file=sys.stderr)
+        log.error("Unable to decode weathermaps json: " + str(e))
     except ConnectionError as e:
-        print("[ERROR] Connection error:", file=sys.stderr)
-        print(e, file=sys.stderr)
+        log.error("Connection error: " + str(e))
     except Exception as e:
-        print("[ERROR] ", file=sys.stderr, end='')
-        print(e, file=sys.stderr)
+        log.error(str(e))
     return 0
 
 
@@ -211,39 +268,51 @@ def img_to_grid(coord):
 
 
 def display():
-    options = RGBMatrixOptions()
-    options.cols = 64
-    options.rows = 32
-    options.chain_length = 2
-    options.gpio_slowdown = 2
-    matrix = RGBMatrix(options=options)
     stop = Event()
-    font = graphics.Font()
-    font.LoadFont("fonts/4x6.bdf")
     def loop():
+        options = RGBMatrixOptions()
+        options.cols = 64
+        options.rows = 32
+        options.chain_length = 2
+        options.gpio_slowdown = 2
+        matrix = RGBMatrix(options=options)
+        font = graphics.Font()
+        font.LoadFont("fonts/4x6.bdf")
         past_color = graphics.Color(255, 255, 255)
         future_color = graphics.Color(255, 0, 255)
-        next = get_cache()[0]
+        cache = get_cache()
+        next = cache[0]
         canvas = matrix.CreateFrameCanvas()
-        while not stop.wait(5):
-            img = Image.open(next["path"]).convert("RGB")
-            dt = datetime.fromtimestamp(int(next["path"].split(".")[0].split("/")[-1]), tz=tzutc()).astimezone(tzlocal())
-            timestr = dt.strftime("%H:%M")
-            datestr = dt.strftime("%m-%d")
-            time.sleep(0.1)
-            cache = get_cache()
-            color = past_color
-            if next["nowcast"]:
-                color = future_color
-            next = cache[(cache.index(next) + 1) % len(cache)]
-            for i in range(128):
-                for j in range(32):
-                    pixel = img.getpixel(grid_to_img((i, j)))
-                    canvas.SetPixel(i, j, pixel[0], pixel[1], pixel[2])
-            graphics.DrawText(canvas, font, 2, 6, color, timestr)
-            graphics.DrawText(canvas, font, 2, 12, color, datestr)
-            canvas = matrix.SwapOnVSync(canvas)
-        matrix.Clear()
+        try:
+            while not stop.wait(5):
+                try:
+                    log.info(__("Updating display to {}", next["path"]))
+                    try:
+                        img = Image.open(next["path"]).convert("RGB")
+                    except FileNotFoundError:
+                        log.error(__("File not found: {}", next["path"]))
+                        next = get_cache()[0]
+                        img = Image.open(next["path"]).convert("RGB")
+                    dt = datetime.fromtimestamp(int(next["path"].split(".")[0].split("/")[-1]), tz=tzutc()).astimezone(tzlocal())
+                    timestr = dt.strftime("%H:%M")
+                    datestr = dt.strftime("%m-%d")
+                    time.sleep(0.1)
+                    color = past_color
+                    if next["nowcast"]:
+                        color = future_color
+                    next = cache[(cache.index(next) + 1) % len(cache)]
+                    cache = get_cache()
+                    for i in range(128):
+                        for j in range(32):
+                            pixel = img.getpixel(grid_to_img((i, j)))
+                            canvas.SetPixel(i, j, pixel[0], pixel[1], pixel[2])
+                    graphics.DrawText(canvas, font, 2, 11, color, timestr)
+                    graphics.DrawText(canvas, font, 2, 17, color, datestr)
+                    canvas = matrix.SwapOnVSync(canvas)
+                except Exception as e:
+                    log.error(__("Display Error:\n{exc_info}", exc_info=e))
+        finally:
+            matrix.Clear()
 
     display_process = Thread(target=loop)
     display_process.daemon = True
@@ -251,22 +320,26 @@ def display():
 
 
 def main():
-    print("{} [INFO] Initializing matrix...".format(int(time.time())))
+    log.info(__("Changing cwd from {} to {}", os.getcwd(), WORKING_DIRECTORY))
+    os.chdir(WORKING_DIRECTORY)
+    log.info("Initializing matrix...".format(int(time.time())))
     stop, matrix_thread = display()
-    print("{} [INFO] Building cache...".format(int(time.time())))
+    log.info("Building cache...".format(int(time.time())))
     build_cache()
-    print("{} [INFO] Built cache".format(int(time.time())))
-    print("{} [INFO] Starting display...".format(int(time.time())))
+    log.info("Built cache".format(int(time.time())))
+    log.info("Starting display...".format(int(time.time())))
     try:
         matrix_thread.start()
         while True:
             time.sleep(60)
             try:
+                log.info("Updating cache...")
                 updates = update_cache()
-                print("{} [INFO] Updated cache ({} files affected)".format(int(time.time()), updates))
+                log.info(__("Updated cache ({} files affected)", updates))
             except Exception as e:
-                print("[ERROR] ", file=sys.stderr, end='')
-                print(e, file=sys.stderr)
+                log.error(__("{exc_info}", exc_info=e))
+    except KeyboardInterrupt:
+        log.info("Caught ctrl-c, exiting...")
     finally:
         stop()
 
@@ -286,4 +359,7 @@ def remove_alpha(image: Image.Image, color: tuple=(255, 255, 255)):
     return background
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        log.error("%(exc_info)s", exc_info=e)
