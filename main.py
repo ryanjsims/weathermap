@@ -1,16 +1,5 @@
 #!/usr/bin/python3.7
 
-# /etc/init.d/weathermap.py
-### BEGIN INIT INFO
-# Provides:          weathermap.py
-# Required-Start:    $dhcpcd $network $remote_fs $syslog
-# Required-Stop:     $dhcpcd $network $remote_fs $syslog
-# Default-Start:     2 3 4 5
-# Default-Stop:      0 1 6
-# Short-Description: Display weathermap on boot
-# Description:       Displays a weathermap on the connected led grid
-### END INIT INFO
-
 from json.decoder import JSONDecodeError
 from http.client import RemoteDisconnected
 from typing import Tuple
@@ -30,8 +19,9 @@ from dateutil.tz import tzlocal, tzutc
 import logging as log
 from logging.handlers import RotatingFileHandler
 
+import weatherportal
+
 MB = 1024 * 1024
-WORKING_DIRECTORY = "/var/local/weathermap"
 
 class BraceMessage:
     def __init__(self, fmt, *args, **kwargs):
@@ -61,7 +51,6 @@ class RedirectingRotatingFileHandler(RotatingFileHandler):
         if self.stdout:
             sys.stdout = self.stream
 
-
 log.basicConfig(
     level=log.INFO,
     format="[{asctime}] [{levelname}]: {message}", 
@@ -69,6 +58,7 @@ log.basicConfig(
     style='{',
     handlers=[RedirectingRotatingFileHandler("/var/log/weathermap.log", maxBytes=25*MB, backupCount=5, redirectstderr=True, redirectstdout=True)]
 )
+
 host = ""
 path = ""
 size = 256
@@ -173,32 +163,42 @@ def save_with_perms(path: str, image: Image.Image, username: str, groupname: str
 
 
 def build_cache():
-    global host, path, last_update
-    for file in scantree("cache"):
-        if file.is_file():
-            os.remove(file.path)
-    try:
-        r = requests.get(mapsURL)
-        data = r.json()
+    finished = Event()
+    def task():
+        log.info("Building cache...")
+        global host, path, last_update
+        for file in scantree("cache"):
+            if file.is_file():
+                os.remove(file.path)
+        try:
+            r = requests.get(mapsURL)
+            data = r.json()
 
-        last_update = data["generated"]
-        host = data["host"]
-        for snapshot in data["radar"]["past"]:
-            path = snapshot["path"]
-            img = download(lat, lon, z, dimensions, img_size)
-            save_with_perms("cache/" + str(snapshot["time"]) + ".png", img, "daemon", "daemon", 0o660)
-            timestamps.append(snapshot["time"])
-        for nowcast in data["radar"]["nowcast"]:
-            path = nowcast["path"]
-            img = download(lat, lon, z, dimensions, img_size)
-            save_with_perms("cache/nowcast/" + str(nowcast["time"]) + ".png", img, "daemon", "daemon", 0o660)
-    except JSONDecodeError as e:
-        log.error("Unable to decode weathermaps json: %(exc_info)s", exc_info=e)
+            last_update = data["generated"]
+            host = data["host"]
+            for snapshot in data["radar"]["past"]:
+                path = snapshot["path"]
+                img = download(lat, lon, z, dimensions, img_size)
+                save_with_perms("cache/" + str(snapshot["time"]) + ".png", img, "daemon", "daemon", 0o660)
+                timestamps.append(snapshot["time"])
+            for nowcast in data["radar"]["nowcast"]:
+                path = nowcast["path"]
+                img = download(lat, lon, z, dimensions, img_size)
+                save_with_perms("cache/nowcast/" + str(nowcast["time"]) + ".png", img, "daemon", "daemon", 0o660)
+        except JSONDecodeError as e:
+            log.error(__("Unable to decode weathermaps json: {}", e))
+        finally:
+            finished.set()
+            log.info("Built cache")
+    build_thread = Thread(target=task)
+    build_thread.daemon = True
+    return finished, build_thread
 
 
 def update_cache():
     global host, path, last_update
     try:
+        log.info("Updating cache...")
         r = requests.get(mapsURL)
         data = r.json()
         if data["generated"] == last_update:
@@ -257,6 +257,7 @@ def grid_to_img(coord):
         to_return[1] = (img_size[1] - 1) - coord[1]
     return tuple(to_return)        
 
+
 def img_to_grid(coord):
     to_return = [0, 0]
     if coord[1] < (img_size[1] // 2):
@@ -268,14 +269,16 @@ def img_to_grid(coord):
 
 
 def display():
+    log.info("Initializing display...")
+    options = RGBMatrixOptions()
+    options.cols = 64
+    options.rows = 32
+    options.chain_length = 2
+    options.gpio_slowdown = 2
+    matrix = RGBMatrix(options=options)
     stop = Event()
     def loop():
-        options = RGBMatrixOptions()
-        options.cols = 64
-        options.rows = 32
-        options.chain_length = 2
-        options.gpio_slowdown = 2
-        matrix = RGBMatrix(options=options)
+        log.info("Starting display...")
         font = graphics.Font()
         font.LoadFont("fonts/4x6.bdf")
         past_color = graphics.Color(255, 255, 255)
@@ -319,31 +322,6 @@ def display():
     return stop.set, display_process
 
 
-def main():
-    log.info(__("Changing cwd from {} to {}", os.getcwd(), WORKING_DIRECTORY))
-    os.chdir(WORKING_DIRECTORY)
-    log.info("Initializing matrix...".format(int(time.time())))
-    stop, matrix_thread = display()
-    log.info("Building cache...".format(int(time.time())))
-    build_cache()
-    log.info("Built cache".format(int(time.time())))
-    log.info("Starting display...".format(int(time.time())))
-    try:
-        matrix_thread.start()
-        while True:
-            time.sleep(60)
-            try:
-                log.info("Updating cache...")
-                updates = update_cache()
-                log.info(__("Updated cache ({} files affected)", updates))
-            except Exception as e:
-                log.error(__("{exc_info}", exc_info=e))
-    except KeyboardInterrupt:
-        log.info("Caught ctrl-c, exiting...")
-    finally:
-        stop()
-
-
 def remove_alpha(image: Image.Image, color: tuple=(255, 255, 255)):
     """Alpha composite an RGBA Image with a specified color.
 
@@ -358,8 +336,34 @@ def remove_alpha(image: Image.Image, color: tuple=(255, 255, 255)):
     background.paste(image, mask=image.split()[3])  # 3 is the alpha channel
     return background
 
+
+def main():
+    log.info(__("Current working directory: {}", os.getcwd()))
+    stop, matrix_thread = display()
+    server_thread = weatherportal.initialize_server(host="0.0.0.0")
+    try:
+        server_thread.start()
+        finished, cache_thread = build_cache()
+        cache_thread.start()
+        while not finished.wait(5):
+            log.debug("Waiting on cache to build")
+        matrix_thread.start()
+        while True:
+            time.sleep(60)
+            try:
+                updates = update_cache()
+                log.info(__("Updated cache ({} files affected)", updates))
+            except Exception as e:
+                log.error(str(e))
+    except KeyboardInterrupt:
+        log.info("Caught ctrl-c, exiting...")
+    finally:
+        stop()
+        server_thread.shutdown()
+
+
 if __name__ == "__main__":
     try:
         main()
     except Exception as e:
-        log.error("%(exc_info)s", exc_info=e)
+        log.error(str(e))
