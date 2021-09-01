@@ -1,6 +1,6 @@
 import os
 import logging as log
-from flask import Flask
+from flask import Flask, g
 from threading import Thread
 from werkzeug.serving import make_server
 
@@ -39,6 +39,21 @@ def create_app(test_config=None):
         os.makedirs(app.instance_path)
     except OSError:
         pass
+
+    @app.before_request
+    def load_pagenav():
+        g.pagenav = [
+            {
+                "endpoint": "index",
+                "icon": "fa-calendar",
+                "name": "Schedules"
+            },
+            {
+                "endpoint": "config.controls",
+                "icon": "fa-tools",
+                "name": "Controls"
+            },
+        ]
     
     from . import db
     db.init_app(app)
@@ -46,10 +61,9 @@ def create_app(test_config=None):
     from . import auth
     app.register_blueprint(auth.bp)
 
-    # a simple page that says hello
-    @app.route('/hello')
-    def hello():
-        return 'Hello, World!'
+    from . import config
+    app.register_blueprint(config.bp)
+    app.add_url_rule('/', endpoint='index')
 
     return app
 

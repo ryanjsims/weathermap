@@ -1,7 +1,66 @@
 <!doctype html>
 <title>{% block title %}{% endblock %} - Weather Map</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-<nav>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">-->
+<link rel="stylesheet" href="{{ url_for('static', filename='w3.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='/font-awesome-5.15.4/css/fontawesome.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='raleway.css') }}">
+<style>
+  html,body,h1,h2,h3,h4,h5 {font-family: "Raleway", sans-serif}
+  .fa-user {padding-right: 5.61666px}
+</style>
+<body class="w3-light-grey">
+
+<!-- Top container -->
+<div class="w3-bar w3-top w3-black w3-large" style="z-index:4">
+  <button class="w3-bar-item w3-button w3-hide-large w3-hover-none w3-hover-text-light-grey" onclick="w3_open();"><i class="fa fa-bars"></i>  Menu</button>
+  <span class="w3-bar-item w3-right">Weather Portal</span>
+</div>
+
+<!-- Sidebar/menu -->
+<nav class="w3-sidebar w3-collapse w3-white w3-animate-left" style="z-index:3;width:300px;" id="mySidebar"><br>
+  <div class="w3-container w3-row">
+    <div class="w3-col s4">
+      <img src="{{ url_for('static', filename='avatar2.png') }}" class="w3-circle w3-margin-right" style="width:46px">
+    </div>
+    <div class="w3-col s8 w3-bar">
+      {% if g.user %}
+        <span class="w3-bar-item">Hey <strong>{{ g.user['username'] }}</strong>!</span><br>
+        <a href="{{ url_for('auth.logout') }}" class="w3-bar-item w3-button"><i class="fa fa-user-slash"></i> Log Out</a>
+      {% else %}
+        <a href="{{ url_for('auth.register') }}" class="w3-bar-item w3-button"><i class="fa fa-user-plus"></i> Register</a>
+        <a href="{{ url_for('auth.login') }}" class="w3-bar-item w3-button"><i class="fa fa-user"></i> Log In</a>
+      {% endif %}
+    </div>
+  </div>
+  <hr>
+  {% if g.user %}
+  <div class="w3-container">
+    <h5>Dashboard</h5>
+  </div>
+  <div class="w3-bar-block">
+    <a href="#" class="w3-bar-item w3-button w3-padding-16 w3-hide-large w3-dark-grey w3-hover-black" onclick="w3_close()" title="close menu"><i class="fa fa-remove fa-fw"></i>  Close Menu</a>
+    {% for page in g.pagenav %}
+      <a href="{{ url_for(page['endpoint']) }}" class="w3-bar-item w3-button w3-padding {{ 'w3-blue' if url_for(page['endpoint']) == url_for(request.endpoint) else '' }}"><i class="fa {{ page['icon'] }} fa-fw"></i>  {{ page['name'] }}</a>
+    {% endfor %}
+    <!--<a href="#" class="w3-bar-item w3-button w3-padding"><i class="fa fa-eye fa-fw"></i>  Views</a>
+    <a href="#" class="w3-bar-item w3-button w3-padding"><i class="fa fa-users fa-fw"></i>  Traffic</a>
+    <a href="#" class="w3-bar-item w3-button w3-padding"><i class="fa fa-bullseye fa-fw"></i>  Geo</a>
+    <a href="#" class="w3-bar-item w3-button w3-padding"><i class="fa fa-diamond fa-fw"></i>  Orders</a>
+    <a href="#" class="w3-bar-item w3-button w3-padding"><i class="fa fa-bell fa-fw"></i>  News</a>
+    <a href="#" class="w3-bar-item w3-button w3-padding"><i class="fa fa-bank fa-fw"></i>  General</a>
+    <a href="#" class="w3-bar-item w3-button w3-padding"><i class="fa fa-history fa-fw"></i>  History</a>
+    <a href="#" class="w3-bar-item w3-button w3-padding"><i class="fa fa-cog fa-fw"></i>  Settings</a>-->
+    <br><br>
+  </div>
+  {% endif %}
+</nav>
+
+<!-- Overlay effect when opening sidebar on small screens -->
+<div class="w3-overlay w3-hide-large w3-animate-opacity" onclick="w3_close()" style="cursor:pointer" title="close side menu" id="myOverlay"></div>
+
+<!--<nav>
   <h1>Weather Portal</h1>
   <ul>
     {% if g.user %}
@@ -12,9 +71,9 @@
       <li><a href="{{ url_for('auth.login') }}">Log In</a>
     {% endif %}
   </ul>
-</nav>
-<section class="content">
-  <header>
+</nav>-->
+<section class="w3-main content" style="margin-left:300px;margin-top:43px;">
+  <header class="w3-container" style="padding-top:22px">
     {% block header %}{% endblock %}
   </header>
   {% for message in get_flashed_messages() %}
@@ -22,3 +81,29 @@
   {% endfor %}
   {% block content %}{% endblock %}
 </section>
+
+<script>
+  // Get the Sidebar
+  var mySidebar = document.getElementById("mySidebar");
+  
+  // Get the DIV with overlay effect
+  var overlayBg = document.getElementById("myOverlay");
+  
+  // Toggle between showing and hiding the sidebar, and add overlay effect
+  function w3_open() {
+    if (mySidebar.style.display === 'block') {
+      mySidebar.style.display = 'none';
+      overlayBg.style.display = "none";
+    } else {
+      mySidebar.style.display = 'block';
+      overlayBg.style.display = "block";
+    }
+  }
+  
+  // Close the sidebar with the close button
+  function w3_close() {
+    mySidebar.style.display = "none";
+    overlayBg.style.display = "none";
+  }
+  </script>
+  </body>

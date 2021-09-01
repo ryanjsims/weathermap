@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block header %}
+  <h1>{% block title %}Scheduler{% endblock %}</h1>
+  <a class="action" href="{{ url_for('index') }}">Back</a>
+{% endblock %}
+
+{% block content %}
+  <form method="post">
+    <label for="starttime">Start Time</label>
+    <input type="time" name="starttime" id="starttime" required>
+    <label for="endtime">Ending Time</label>
+    <input type="time" name="endtime" id="endtime" required>
+    <label for="state">Display State</label>
+    <select name="state">
+      <option value="on">ON</option>
+      <option value="off">OFF</option>
+    </select>
+    <input type="submit" value="Create">
+  </form>
+{% endblock %}

@@ -6,6 +6,7 @@ from flask import (
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 from weatherportal.db import get_db
+import logging as log
 
 bp = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -28,8 +29,11 @@ def register():
         
         if not error:
             try:
-                credential_id = db.execute("INSERT INTO credentials (username, password) VALUES (?, ?) RETURNING id",
+                db.execute("INSERT INTO credentials (username, password) VALUES (?, ?)",
                     (username, generate_password_hash(password))
+                )
+                credential_id = db.execute("SELECT * FROM credentials where username = ?", 
+                    (username,)
                 ).fetchone()["id"]
                 db.execute("INSERT INTO users (credential_id, firstname, lastname) VALUES (?, ?, ?)",
                     (credential_id, firstname, lastname)
@@ -38,6 +42,11 @@ def register():
             except db.IntegrityError:
                 error = "Username {} is taken".format(username)
                 db.rollback()
+                log.error("Attempted duplicate registration of username " + username)
+            except db.OperationalError as e:
+                error = "Internal server error: (Send to Ryan)\n" + repr(e)
+                db.rollback()
+                log.error(repr(e))
             else:
                 return redirect(url_for("auth.login"))    
         flash(error)
@@ -51,7 +60,7 @@ def login():
         password = request.form["password"]
         db = get_db()
         error = None
-        user = db.execute("SELECT * FROM credential where username = ?", (username,)).fetchone()
+        user = db.execute("SELECT * FROM credentials where username = ?", (username,)).fetchone()
         if user is None or not check_password_hash(user['password'], password):
             error = "Incorrect login details, please try again later"
         
@@ -71,7 +80,7 @@ def load_logged_in_user():
         g.user = None
     else:
         g.user = get_db().execute(
-            'SELECT * FROM user WHERE id = ?', (user_id,)
+            'SELECT * FROM credentials WHERE id = ?', (user_id,)
         ).fetchone()
 
 

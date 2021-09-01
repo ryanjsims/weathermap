@@ -3,3 +3,4 @@ __pycache__
 *.bdf
 instance/
 *.log
+weatherportal/static/font-awesome-5.15.4/

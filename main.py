@@ -164,6 +164,7 @@ def save_with_perms(path: str, image: Image.Image, username: str, groupname: str
 
 def build_cache():
     finished = Event()
+    cache_ready = Event()
     def task():
         log.info("Building cache...")
         global host, path, last_update
@@ -181,6 +182,8 @@ def build_cache():
                 img = download(lat, lon, z, dimensions, img_size)
                 save_with_perms("cache/" + str(snapshot["time"]) + ".png", img, "daemon", "daemon", 0o660)
                 timestamps.append(snapshot["time"])
+                if not cache_ready.is_set():
+                    cache_ready.set()
             for nowcast in data["radar"]["nowcast"]:
                 path = nowcast["path"]
                 img = download(lat, lon, z, dimensions, img_size)
@@ -192,7 +195,7 @@ def build_cache():
             log.info("Built cache")
     build_thread = Thread(target=task)
     build_thread.daemon = True
-    return finished, build_thread
+    return finished, cache_ready, build_thread
 
 
 def update_cache():
@@ -343,13 +346,15 @@ def main():
     server_thread = weatherportal.initialize_server(host="0.0.0.0")
     try:
         server_thread.start()
-        finished, cache_thread = build_cache()
+        finished, cache_ready, cache_thread = build_cache()
         cache_thread.start()
-        while not finished.wait(5):
+        while not cache_ready.wait(5):
             log.debug("Waiting on cache to build")
         matrix_thread.start()
         while True:
             time.sleep(60)
+            while not finished.wait(5):
+                pass
             try:
                 updates = update_cache()
                 log.info(__("Updated cache ({} files affected)", updates))
@@ -357,13 +362,12 @@ def main():
                 log.error(str(e))
     except KeyboardInterrupt:
         log.info("Caught ctrl-c, exiting...")
+    except Exception as e:
+        log.error(str(e))
     finally:
         stop()
         server_thread.shutdown()
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        log.error(str(e))
+    main()
