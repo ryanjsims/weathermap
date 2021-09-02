@@ -1,4 +1,4 @@
-*.png
+cache/*
 __pycache__
 *.bdf
 instance/

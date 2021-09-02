@@ -4,6 +4,19 @@ from flask import Flask, g
 from threading import Thread
 from werkzeug.serving import make_server
 
+display_config = {
+    "size": 256,
+    "lat": 33.317027,
+    "lon": -111.875500,
+    "z": 9,                           #zoom level
+    "color": 4,                       #Weather channel colors
+    "options": "0_0",                 #smoothed with no snow
+    "dimensions": (200000, 200000),   #dimensions of final image in meters
+    "img_size": (64, 64),             #Number of LEDs in matrix rows and columns
+    "refresh_delay": 5,
+    "pause": False
+}
+
 
 class ServerThread(Thread):
     def __init__(self, host, port, app):

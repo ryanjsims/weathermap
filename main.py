@@ -61,14 +61,7 @@ log.basicConfig(
 
 host = ""
 path = ""
-size = 256
-lat = 33.317027
-lon = -111.875500
-z = 9                           #zoom level
-color = 4                       #Weather channel colors
-options = "0_0"                 #smoothed with no snow
-dimensions = (200000, 200000)   #dimensions of final image in meters
-img_size = (64, 64)            #Number of LEDs in matrix rows and columns
+
 mapsURL = "https://api.rainviewer.com/public/weather-maps.json"
 tileURL = "{host}{path}/{size}/{z}/{lat}/{lon}/{color}/{options}.png"
 tileXYURL = "{host}{path}/{size}/{z}/{x}/{y}/{color}/{options}.png"
@@ -101,12 +94,12 @@ def deg2num(lat_deg, lon_deg, zoom, dec = []):
     return (int(xtile), int(ytile))
 
 
-def download(lat: float, lon: float, z: int, dim: Tuple[int, int], final_size: Tuple[int, int]) -> Image.Image:
+def download(config: dict) -> Image.Image:
     dec = []
     to_download = []
-    x, y = deg2num(lat, lon, z, dec)
-    xpix = int(dim[0] / zoom2res[z])
-    ypix = int(dim[1] / zoom2res[z])
+    x, y = deg2num(config["lat"], config["lon"], config["z"], dec)
+    xpix = int(config["dim"][0] / zoom2res[config["z"]])
+    ypix = int(config["dim"][1] / zoom2res[config["z"]])
     centerx = int(256 * dec[0])
     centery = int(256 * dec[1])
     pxbounds = [centerx - xpix / 2, 
@@ -129,7 +122,7 @@ def download(lat: float, lon: float, z: int, dim: Tuple[int, int], final_size: T
     images = [{"coords": coords, "image": None} for coords in to_download]
 
     def helper(coords):
-        r = requests.get(tileXYURL.format(**globals(), x=coords[0], y=coords[1]))
+        r = requests.get(tileXYURL.format(**globals(), x=coords[0], y=coords[1], **config))
         image = BytesIO()
         for chunk in r:
             image.write(chunk)
@@ -151,7 +144,7 @@ def download(lat: float, lon: float, z: int, dim: Tuple[int, int], final_size: T
         combined.paste(image["image"], ((i // image_dims[1]) * 256, (i % image_dims[1]) * 256))
         image["image"].close()
     
-    resized = remove_alpha(combined.crop(map(int, absbounds)).resize(final_size), (0, 0, 0))
+    resized = remove_alpha(combined.crop(map(int, absbounds)).resize(config["img_size"]), (0, 0, 0))
     combined.close()
     return resized
 
@@ -179,14 +172,14 @@ def build_cache():
             host = data["host"]
             for snapshot in data["radar"]["past"]:
                 path = snapshot["path"]
-                img = download(lat, lon, z, dimensions, img_size)
+                img = download(weatherportal.display_config)
                 save_with_perms("cache/" + str(snapshot["time"]) + ".png", img, "daemon", "daemon", 0o660)
                 timestamps.append(snapshot["time"])
                 if not cache_ready.is_set():
                     cache_ready.set()
             for nowcast in data["radar"]["nowcast"]:
                 path = nowcast["path"]
-                img = download(lat, lon, z, dimensions, img_size)
+                img = download(weatherportal.display_config)
                 save_with_perms("cache/nowcast/" + str(nowcast["time"]) + ".png", img, "daemon", "daemon", 0o660)
         except JSONDecodeError as e:
             log.error(__("Unable to decode weathermaps json: {}", e))
@@ -215,13 +208,13 @@ def update_cache():
             if snapshot["time"] in timestamps:
                 continue
             path = snapshot["path"]
-            img = download(lat, lon, z, dimensions, img_size)
+            img = download(weatherportal.display_config)
             save_with_perms("cache/" + str(snapshot["time"]) + ".png", img, "daemon", "daemon", 0o660)
             timestamps.append(snapshot["time"])
             updates += 1
         for nowcast in data["radar"]["nowcast"]:
             path = nowcast["path"]
-            img = download(lat, lon, z, dimensions, img_size)
+            img = download(weatherportal.display_config)
             save_with_perms("cache/nowcast/" + str(nowcast["time"]) + ".png", img, "daemon", "daemon", 0o660)
             updates += 1
         webtimestamps = [snapshot["time"] for snapshot in data["radar"]["past"]]
@@ -253,21 +246,21 @@ def get_cache():
 
 def grid_to_img(coord):
     to_return = [0, 0]
-    if coord[0] < img_size[0]:
+    if coord[0] < weatherportal.display_config["img_size"][0]:
         to_return = coord
     else:
-        to_return[0] = (img_size[0] - 1) - (coord[0] % img_size[0])
-        to_return[1] = (img_size[1] - 1) - coord[1]
+        to_return[0] = (weatherportal.display_config["img_size"][0] - 1) - (coord[0] % weatherportal.display_config["img_size"][0])
+        to_return[1] = (weatherportal.display_config["img_size"][1] - 1) - coord[1]
     return tuple(to_return)        
 
 
 def img_to_grid(coord):
     to_return = [0, 0]
-    if coord[1] < (img_size[1] // 2):
+    if coord[1] < (weatherportal.display_config["img_size"][1] // 2):
         to_return = coord
     else:
-        to_return[0] = (img_size[0] * 2 - 1) - coord[0]
-        to_return[1] = (img_size[1] - 1) - coord[1]
+        to_return[0] = (weatherportal.display_config["img_size"][0] * 2 - 1) - coord[0]
+        to_return[1] = (weatherportal.display_config["img_size"][1] - 1) - coord[1]
     return tuple(to_return)
 
 
@@ -290,7 +283,9 @@ def display():
         next = cache[0]
         canvas = matrix.CreateFrameCanvas()
         try:
-            while not stop.wait(5):
+            while not stop.wait(weatherportal.display_config["refresh_delay"]):
+                if weatherportal.display_config["pause"]:
+                    continue
                 try:
                     log.info(__("Updating display to {}", next["path"]))
                     try:
