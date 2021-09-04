@@ -6,35 +6,26 @@ from werkzeug.exceptions import abort
 
 from weatherportal.auth import login_required
 from weatherportal.db import get_db
+import datetime
 
 bp = Blueprint('config', __name__)
 
-def time_in_range(time, start, end):
-    parsetime = lambda x: map(int, x.split(":"))
-    start_hr, start_min = parsetime(start)
-    end_hr, end_min = parsetime(end)
-    curr_hr, curr_min = parsetime(time)
-    hours = []
-    i = start_hr + 1
-    while i < end_hr:
-        hours.append(i)
-        i = (i + 1) % 24
-    return (curr_hr in hours 
-        or curr_hr == start_hr and curr_min >= start_min
-        or curr_hr == end_hr and curr_min <= end_min)
+def parsetime(x):
+    return datetime.time(*map(int, x.split(":")))
 
-def format_12hr(time):
-    parsetime = lambda x: map(int, x.split(":"))
-    half = "am"
-    hour, min = parsetime(time)
-    if hour == 0:
-        hour = 12
-    elif hour == 12:
-        half = "pm"
-    elif hour > 12:
-        half = "pm"
-        hour = hour % 12
-    return "{:02d}:{:02d} {}".format(hour, min, half)
+def time_in_range(time, start_str, end_str):
+    start = parsetime(start_str)
+    end = parsetime(end_str)
+    curr = parsetime(time)
+    if start <= end:
+        return start < curr < end
+    else:
+        return start < curr or curr < end
+
+
+def format_12hr(time_str):
+    time = parsetime(time_str)
+    return time.strftime("%I:%M %p")
 
 @bp.route("/")
 @login_required
