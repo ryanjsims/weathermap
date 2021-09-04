@@ -98,8 +98,8 @@ def download(config: dict) -> Image.Image:
     dec = []
     to_download = []
     x, y = deg2num(config["lat"], config["lon"], config["z"], dec)
-    xpix = int(config["dim"][0] / zoom2res[config["z"]])
-    ypix = int(config["dim"][1] / zoom2res[config["z"]])
+    xpix = int(config["dimensions"][0] / zoom2res[config["z"]])
+    ypix = int(config["dimensions"][1] / zoom2res[config["z"]])
     centerx = int(256 * dec[0])
     centery = int(256 * dec[1])
     pxbounds = [centerx - xpix / 2, 
