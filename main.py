@@ -1,5 +1,6 @@
 #!/usr/bin/python3.7
 
+from http import server
 from json.decoder import JSONDecodeError
 from http.client import RemoteDisconnected
 from typing import Tuple
@@ -311,7 +312,7 @@ def display(context):
                     if not all([schedule["enabled"] for schedule in schedules]):
                         canvas.Clear()
                         canvas = matrix.SwapOnVSync(canvas)
-                        log.info("Cleared display due to schedule")
+                        log.info("Display off as scheduled")
                         continue
                     birthdays = get_birthdays()
                 if weatherportal.display_config["pause"]:
@@ -386,6 +387,11 @@ def main():
             while not finished.wait(5):
                 pass
             try:
+                with server_thread.ctx:
+                    schedules = get_current_schedules()
+                    if not all([schedule["enabled"] for schedule in schedules]):
+                        log.info("No cache update needed since display is off")
+                        continue
                 updates = update_cache()
                 log.info(__("Updated cache ({} files affected)", updates))
             except Exception as e:
