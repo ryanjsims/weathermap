@@ -314,7 +314,7 @@ def display(context: AppContext):
                     if not all([schedule["enabled"] for schedule in schedules]):
                         canvas.Clear()
                         canvas = matrix.SwapOnVSync(canvas)
-                        log.info("Display off as scheduled")
+                        log.debug("Display off as scheduled")
                         continue
                     birthdays = get_birthdays()
                 if weatherportal.display_config["pause"]:
@@ -392,7 +392,7 @@ def main():
                 with server_thread.app.app_context():
                     schedules = get_current_schedules()
                     if not all([schedule["enabled"] for schedule in schedules]):
-                        log.info("No cache update needed since display is off")
+                        log.debug("No cache update needed since display is off")
                         continue
                 updates = update_cache()
                 log.info(__("Updated cache ({} files affected)", updates))
