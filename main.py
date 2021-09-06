@@ -285,7 +285,7 @@ def draw_image(canvas: rgbmatrix.FrameCanvas, canvas_lt: Tuple[int, int],
 
 
 
-def display():
+def display(context):
     log.info("Initializing display...")
     options = RGBMatrixOptions()
     options.cols = 64
@@ -332,7 +332,8 @@ def display():
                     draw_image(canvas, (0, 0), img, (0, 0, 64, 64))
                     graphics.DrawText(canvas, font, 2, 11, color, timestr)
                     graphics.DrawText(canvas, font, 2, 17, color, datestr)
-                    birthdays = get_birthdays()
+                    with context:
+                        birthdays = get_birthdays()
                     if len(birthdays) > 0:
                         draw_image(canvas, (2, 18), cake, (0, 0, 6, 6))
                         graphics.DrawText(canvas, font, 10, 24, past_color, "HBD")
@@ -365,8 +366,8 @@ def remove_alpha(image: Image.Image, color: tuple=(255, 255, 255)):
 
 def main():
     log.info(__("Current working directory: {}", os.getcwd()))
-    stop, matrix_thread = display()
     server_thread = weatherportal.initialize_server(host="0.0.0.0")
+    stop, matrix_thread = display(server_thread.ctx)
     try:
         server_thread.start()
         finished, cache_ready, cache_thread = build_cache()
