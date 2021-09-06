@@ -38,19 +38,19 @@ def get_current_schedules():
     for schedule in schedules:
         if schedule["start_day"] <= schedule["end_day"] and schedule["start_time"] <= schedule["end_time"]:
             if (schedule["start_day"] <= int(now.strftime("%w")) <= schedule["end_day"] 
-                and datetime.time(schedule["start_time"]) <= datetime.time.now(tzlocal()) <= datetime.time(schedule["end_time"])):
+                and schedule["start_time"].time() <= datetime.time.now(tzlocal()) <= schedule["end_time"].time()):
                 current.append(schedule)
         elif schedule["start_day"] <= schedule["end_day"] and schedule["start_time"] > schedule["end_time"]:
             if (schedule["start_day"] <= int(now.strftime("%w")) <= schedule["end_day"] 
-                and (datetime.time(schedule["start_time"]) <= datetime.time.now(tzlocal()) or datetime.time.now(tzlocal()) <= datetime.time(schedule["end_time"]))):
+                and (schedule["start_time"].time() <= datetime.time.now(tzlocal()) or datetime.time.now(tzlocal()) <= schedule["end_time"].time())):
                 current.append(schedule)
         elif schedule["start_day"] > schedule["end_day"] and schedule["start_time"] <= schedule["end_time"]:
             if ((schedule["start_day"] <= int(now.strftime("%w")) or int(now.strftime("%w")) <= schedule["end_day"])
-                and datetime.time(schedule["start_time"]) <= datetime.time.now(tzlocal()) <= datetime.time(schedule["end_time"])):
+                and schedule["start_time"].time() <= datetime.time.now(tzlocal()) <= schedule["end_time"].time()):
                 current.append(schedule)
         elif schedule["start_day"] > schedule["end_day"] and schedule["start_time"] > schedule["end_time"]:
             if ((schedule["start_day"] <= int(now.strftime("%w")) or int(now.strftime("%w")) <= schedule["end_day"])
-                and (datetime.time(schedule["start_time"]) <= datetime.time.now(tzlocal()) or datetime.time.now(tzlocal()) <= datetime.time(schedule["end_time"]))):
+                and (schedule["start_time"].time() <= datetime.time.now(tzlocal()) or datetime.time.now(tzlocal()) <= schedule["end_time"].time())):
                 current.append(schedule)
     return current
 
