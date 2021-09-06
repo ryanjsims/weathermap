@@ -39,6 +39,7 @@ def create_app(test_config=None):
     app.config.from_mapping(
         SECRET_KEY='dev',
         DATABASE=os.path.join(app.instance_path, 'weatherportal.sqlite'),
+        DISPLAY_SETTINGS=None,
     )
 
     if test_config is None:
@@ -47,6 +48,9 @@ def create_app(test_config=None):
     else:
         # load the test config if passed in
         app.config.from_mapping(test_config)
+
+    if app.config["DISPLAY_SETTINGS"]:
+        display_config = app.config["DISPLAY_SETTINGS"]
 
     # ensure the instance folder exists
     try:
