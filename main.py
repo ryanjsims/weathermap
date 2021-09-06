@@ -334,6 +334,7 @@ def display(context):
                     graphics.DrawText(canvas, font, 2, 17, color, datestr)
                     with context:
                         birthdays = get_birthdays()
+                    log.info(str(birthdays))
                     if len(birthdays) > 0:
                         draw_image(canvas, (2, 18), cake, (0, 0, 6, 6))
                         graphics.DrawText(canvas, font, 10, 24, past_color, "HBD")
