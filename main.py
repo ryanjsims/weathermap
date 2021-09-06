@@ -309,7 +309,7 @@ def display(context):
                 with context:
                     schedules = get_current_schedules()
                     if not all([schedule["enabled"] for schedule in schedules]):
-                        canvas.clear()
+                        canvas.Clear()
                         canvas = matrix.SwapOnVSync(canvas)
                         continue
                     birthdays = get_birthdays()
