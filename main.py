@@ -4,6 +4,8 @@ from http import server
 from json.decoder import JSONDecodeError
 from http.client import RemoteDisconnected
 from typing import Tuple
+
+from flask.ctx import AppContext
 from weatherportal import birthdays
 import requests
 from PIL import Image
@@ -286,7 +288,7 @@ def draw_image(canvas: rgbmatrix.FrameCanvas, canvas_lt: Tuple[int, int],
             canvas.SetPixel(i, j, pixel[0], pixel[1], pixel[2])
 
 
-def display(context):
+def display(context: AppContext):
     log.info("Initializing display...")
     options = RGBMatrixOptions()
     options.cols = 64
@@ -387,7 +389,7 @@ def main():
             while not finished.wait(5):
                 pass
             try:
-                with server_thread.ctx:
+                with server_thread.app.app_context():
                     schedules = get_current_schedules()
                     if not all([schedule["enabled"] for schedule in schedules]):
                         log.info("No cache update needed since display is off")

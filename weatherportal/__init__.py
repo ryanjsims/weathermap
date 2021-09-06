@@ -24,6 +24,7 @@ class ServerThread(Thread):
         self.srv = make_server(host, port, app)
         self.ctx = app.app_context()
         self.ctx.push()
+        self.app = app
 
     def run(self):
         log.info("Starting web server...")
