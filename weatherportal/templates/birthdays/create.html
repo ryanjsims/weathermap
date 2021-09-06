@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block header %}
+  <h1><i class="fa fa-birthday-cake"></i> {% block title %}New Birthday{% endblock %}</h1>
+  <a class="action" href="{{ url_for('birthdays.index') }}">Back</a>
+{% endblock %}
+
+{% block content %}
+  <form method="post">
+    <label for="user">User</label>
+    <select name="user">
+      <option value="">---SELECT A USER---</option>
+      {% for user in users %}
+      <option value="{{ user['id'] }}">{{ user['username'] }}</option>
+      {% endfor %}
+    </select>
+    <label for="date">Date of Birth</label>
+    <input type="date" name="date" id="date" required>
+    <input type="submit" value="Create">
+  </form>
+{% endblock %}

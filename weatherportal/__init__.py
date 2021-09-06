@@ -66,6 +66,11 @@ def create_app(test_config=None):
                 "icon": "fa-tools",
                 "name": "Controls"
             },
+            {
+                "endpoint": "birthdays.index",
+                "icon": "fa-birthday-cake",
+                "name": "Birthdays"
+            },
         ]
     
     from . import db
@@ -77,6 +82,9 @@ def create_app(test_config=None):
     from . import config
     app.register_blueprint(config.bp)
     app.add_url_rule('/', endpoint='index')
+
+    from . import birthdays
+    app.register_blueprint(birthdays.bp)
 
     return app
 

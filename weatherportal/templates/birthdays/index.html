@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+{% block header %}
+  <h1><i class="fa fa-birthday-cake"></i> {% block title %}Birthdays{% endblock %}</h1>
+  {% if g.user %}
+    <a class="w3-button" href="{{ url_for('birthdays.create') }}"><i class="fa fa-plus fa-lg"></i></a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  <table class="w3-table w3-striped" style="width:50%">
+    <tr>
+      <th>Name </th>
+      <th>Date</th>
+      <th class="w3-center">Delete Birthday</th>
+    </tr>
+  {% for birthday in birthdays %}
+    <tr>
+      <td>{{ birthday['firstname'] }} {{ birthday['lastname'] }}</td>
+      <td>{{ birthday['date'].strftime("%m/%d") }}</td>
+      <td class="w3-center"><a class="w3-button" href="{{ url_for('birthdays.delete', id=birthday['id']) }}"><i class="fa fa-trash"></i></a></td>
+    </tr>
+  {% endfor %}
+  </table>
+{% endblock %}

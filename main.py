@@ -3,6 +3,7 @@
 from json.decoder import JSONDecodeError
 from http.client import RemoteDisconnected
 from typing import Tuple
+from weatherportal import birthdays
 import requests
 from PIL import Image
 from io import BytesIO
@@ -18,8 +19,9 @@ from datetime import datetime
 from dateutil.tz import tzlocal, tzutc
 import logging as log
 from logging.handlers import RotatingFileHandler
-
+import rgbmatrix
 import weatherportal
+from weatherportal.birthdays import get_birthdays
 
 MB = 1024 * 1024
 
@@ -263,6 +265,25 @@ def img_to_grid(coord):
         to_return[1] = (weatherportal.display_config["img_size"][1] - 1) - coord[1]
     return tuple(to_return)
 
+# Draws part of an image defined by image_rect to the area of the canvas defined by 
+#   canvas_topleft and the width and height of image_rect
+#   image_rect is a tuple of the form (left, upper, right, lower)
+#   canvas_topleft is a coordinate of the form (left, upper)
+def draw_image(canvas: rgbmatrix.FrameCanvas, canvas_lt: Tuple[int, int], 
+                img: Image.Image, image_rect: Tuple[int, int, int, int], filterAlpha=True):
+    if image_rect[2] - image_rect[0] < img.width or image_rect[3] - image_rect[1] < img.height:
+        to_draw = img.crop(image_rect)
+    else:
+        to_draw = img
+    for x in range(to_draw.width):
+        for y in range(to_draw.height):
+            pixel = to_draw.getpixel((x, y))
+            if len(pixel) == 4 and filterAlpha and pixel[3] == 0:
+                continue
+            i, j = img_to_grid((canvas_lt[0] + x, canvas_lt[1] + y))
+            canvas.SetPixel(i, j, pixel[0], pixel[1], pixel[2])
+
+
 
 def display():
     log.info("Initializing display...")
@@ -282,6 +303,7 @@ def display():
         cache = get_cache()
         next = cache[0]
         canvas = matrix.CreateFrameCanvas()
+        cake = Image.open("weatherportal/static/images/cake.png")
         try:
             while not stop.wait(weatherportal.display_config["refresh_delay"]):
                 if weatherportal.display_config["pause"]:
@@ -303,12 +325,18 @@ def display():
                         color = future_color
                     next = cache[(cache.index(next) + 1) % len(cache)]
                     cache = get_cache()
-                    for i in range(128):
-                        for j in range(32):
-                            pixel = img.getpixel(grid_to_img((i, j)))
-                            canvas.SetPixel(i, j, pixel[0], pixel[1], pixel[2])
+                    # for i in range(128):
+                    #     for j in range(32):
+                    #         pixel = img.getpixel(grid_to_img((i, j)))
+                    #         canvas.SetPixel(i, j, pixel[0], pixel[1], pixel[2])
+                    draw_image(canvas, (0, 0), img, (0, 0, 64, 64))
                     graphics.DrawText(canvas, font, 2, 11, color, timestr)
                     graphics.DrawText(canvas, font, 2, 17, color, datestr)
+                    birthdays = get_birthdays()
+                    if len(birthdays) > 0:
+                        draw_image(canvas, (2, 18), cake, (0, 0, 6, 6))
+                        graphics.DrawText(canvas, font, 10, 24, past_color, "HBD")
+                        graphics.DrawText(canvas, font, 2, 31, past_color, birthdays[0]["firstname"])
                     canvas = matrix.SwapOnVSync(canvas)
                 except Exception as e:
                     log.error(__("Display Error:\n{exc_info}", exc_info=e))

@@ -32,6 +32,7 @@ def format_12hr(time_str):
 def overview():
     db = get_db()
     schedules = db.execute("select * from schedules").fetchall()
+    print(schedules)
     return render_template("config/index.html", schedules=schedules, format_12hr=format_12hr)
 
 @bp.route("/controls")
