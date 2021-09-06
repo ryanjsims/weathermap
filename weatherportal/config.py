@@ -45,7 +45,6 @@ def get_current_schedules():
 def overview():
     db = get_db()
     schedules = db.execute("select * from schedules").fetchall()
-    print(schedules)
     return render_template("config/index.html", schedules=schedules, days=days)
 
 @bp.route("/controls")

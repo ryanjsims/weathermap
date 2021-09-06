@@ -308,7 +308,7 @@ def display(context):
             while not stop.wait(weatherportal.display_config["refresh_delay"]):
                 with context:
                     schedules = get_current_schedules()
-                    if not all([schedule["state"] for schedule in schedules]):
+                    if not all([schedule["enabled"] for schedule in schedules]):
                         canvas.clear()
                         canvas = matrix.SwapOnVSync(canvas)
                         continue
