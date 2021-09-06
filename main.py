@@ -22,6 +22,7 @@ from logging.handlers import RotatingFileHandler
 import rgbmatrix
 import weatherportal
 from weatherportal.birthdays import get_birthdays
+from weatherportal.config import get_current_schedules
 
 MB = 1024 * 1024
 
@@ -284,7 +285,6 @@ def draw_image(canvas: rgbmatrix.FrameCanvas, canvas_lt: Tuple[int, int],
             canvas.SetPixel(i, j, pixel[0], pixel[1], pixel[2])
 
 
-
 def display(context):
     log.info("Initializing display...")
     options = RGBMatrixOptions()
@@ -306,6 +306,13 @@ def display(context):
         cake = Image.open("weatherportal/static/images/cake.png")
         try:
             while not stop.wait(weatherportal.display_config["refresh_delay"]):
+                with context:
+                    schedules = get_current_schedules()
+                    if not all([schedule["state"] for schedule in schedules]):
+                        canvas.clear()
+                        canvas = matrix.SwapOnVSync(canvas)
+                        continue
+                    birthdays = get_birthdays()
                 if weatherportal.display_config["pause"]:
                     continue
                 try:
@@ -332,13 +339,10 @@ def display(context):
                     draw_image(canvas, (0, 0), img, (0, 0, 64, 64))
                     graphics.DrawText(canvas, font, 2, 11, color, timestr)
                     graphics.DrawText(canvas, font, 2, 17, color, datestr)
-                    with context:
-                        birthdays = get_birthdays()
-                    log.info(str(birthdays))
                     if len(birthdays) > 0:
                         draw_image(canvas, (2, 18), cake, (0, 0, 6, 6))
                         graphics.DrawText(canvas, font, 10, 24, past_color, "HBD")
-                        graphics.DrawText(canvas, font, 2, 31, past_color, birthdays[0]["firstname"])
+                        graphics.DrawText(canvas, font, 2, 30, past_color, birthdays[0]["firstname"])
                     canvas = matrix.SwapOnVSync(canvas)
                 except Exception as e:
                     log.error(__("Display Error:\n{exc_info}", exc_info=e))

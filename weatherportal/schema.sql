@@ -28,8 +28,10 @@ CREATE TABLE birthdays (
 CREATE TABLE schedules (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
-  start_time TEXT NOT NULL,
-  end_time TEXT NOT NULL,
+  start_day INTEGER NOT NULL,
+  end_day INTEGER NOT NULL,
+  start_time TIMESTAMP NOT NULL,
+  end_time TIMESTAMP NOT NULL,
   enabled BOOLEAN NOT NULL,
   FOREIGN KEY (user_id) REFERENCES users (id)
 );

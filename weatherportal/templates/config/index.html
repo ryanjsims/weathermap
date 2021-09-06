@@ -16,7 +16,7 @@
     </tr>
   {% for schedule in schedules %}
     <tr>
-      <td>{{ format_12hr(schedule['start_time']) }} to {{ format_12hr(schedule['end_time']) }}</td>
+      <td>{{ days[schedule["start_day"]] }} {{ schedule['start_time'].strftime("%I:%M %p") }} to {% if schedule["start_day"] != schedule["end_day"] %}{{ days[schedule["end_day"]] }}{% endif %} {{ schedule['end_time'].strftime("%I:%M %p") }}</td>
       <td>{{ "On" if schedule['enabled'] else "Off" }}</td>
       <td class="w3-center"><a class="w3-button" href="{{ url_for('config.delete_schedule', id=schedule['id']) }}"><i class="fa fa-trash"></i></a></td>
     </tr>

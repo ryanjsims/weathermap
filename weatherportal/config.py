@@ -10,6 +10,8 @@ import datetime
 
 bp = Blueprint('config', __name__)
 
+days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+
 def parsetime(x):
     return datetime.time(*map(int, x.split(":")))
 
@@ -27,13 +29,24 @@ def format_12hr(time_str):
     time = parsetime(time_str)
     return time.strftime("%I:%M %p")
 
+def get_current_schedules():
+    db = get_db()
+    return db.execute(
+         """select * 
+                from schedules 
+            where start_day <= strftime('%w', date(CURRENT_DATE, 'localtime'))
+                    and time(start_time) <= time(CURRENT_TIME, 'localtime')
+                    and end_day >= strftime('%w', date(CURRENT_DATE, 'localtime'))
+                    and time(end_time) >= time(CURRENT_TIME, 'localtime');"""
+        ).fetchall()
+
 @bp.route("/")
 @login_required
 def overview():
     db = get_db()
     schedules = db.execute("select * from schedules").fetchall()
     print(schedules)
-    return render_template("config/index.html", schedules=schedules, format_12hr=format_12hr)
+    return render_template("config/index.html", schedules=schedules, days=days)
 
 @bp.route("/controls")
 @login_required
@@ -45,19 +58,16 @@ def controls():
 def create_schedule():
     if request.method == "POST":
         error = None
-        start = request.form["starttime"]
-        end = request.form["endtime"]
+        start = parsetime(request.form["starttime"])
+        end = parsetime(request.form["endtime"])
+        startday = request.form["startday"]
+        endday = request.form["endday"]
         enabled = request.form["state"]
         try:
-            db = get_db()
-            schedules = db.execute("select * from schedules order by start_time").fetchall()
-            for schedule in schedules:
-                if time_in_range(start, schedule["start_time"], schedule["end_time"]) or time_in_range(end, schedule["start_time"], schedule["end_time"]):
-                    error = "Conflicting schedule: {} starting at {} ending at {}".format(schedule["enabled"], schedule["start_time"], schedule["end_time"])
-                    break
+            db = get_db()            
             if not error:
-                db.execute("insert into schedules (user_id, start_time, end_time, enabled) values (?, ?, ?, ?)",
-                    (session.get("user_id"), start, end, enabled == "on")
+                db.execute("insert into schedules (user_id, start_day, end_day, start_time, end_time, enabled) values (?, ?, ?, ?, ?, ?)",
+                    (session.get("user_id"), startday, endday, start.strftime("1970-01-01 %H:%M:00"), end.strftime("1970-01-01 %H:%M:00"), enabled == "on")
                 )
                 db.commit()
         except OperationalError as e:

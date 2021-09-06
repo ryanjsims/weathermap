@@ -21,9 +21,6 @@ def get_birthdays():
 def birthdays():
     db = get_db()
     birthdays = db.execute("select * from birthdays join users on birthdays.user_id;").fetchall()
-    print(birthdays)
-    for birthday in birthdays:
-        print(birthday)
     return render_template("birthdays/index.html", birthdays=birthdays)
 
 @bp.route("/delete/<id>")

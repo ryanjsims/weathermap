@@ -7,8 +7,28 @@
 
 {% block content %}
   <form method="post">
+    <label for="startday">Start Day</label>
+    <select name="startday">
+      <option value="0">Sunday</option>
+      <option value="1">Monday</option>
+      <option value="2">Tuesday</option>
+      <option value="3">Wednesday</option>
+      <option value="4">Thursday</option>
+      <option value="5">Friday</option>
+      <option value="6">Saturday</option>
+    </select>
     <label for="starttime">Start Time</label>
     <input type="time" name="starttime" id="starttime" required>
+    <label for="endday">Ending Day</label>
+    <select name="endday">
+      <option value="0">Sunday</option>
+      <option value="1">Monday</option>
+      <option value="2">Tuesday</option>
+      <option value="3">Wednesday</option>
+      <option value="4">Thursday</option>
+      <option value="5">Friday</option>
+      <option value="6">Saturday</option>
+    </select>
     <label for="endtime">Ending Time</label>
     <input type="time" name="endtime" id="endtime" required>
     <label for="state">Display State</label>
