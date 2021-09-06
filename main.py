@@ -311,6 +311,7 @@ def display(context):
                     if not all([schedule["enabled"] for schedule in schedules]):
                         canvas.Clear()
                         canvas = matrix.SwapOnVSync(canvas)
+                        log.info("Cleared display due to schedule")
                         continue
                     birthdays = get_birthdays()
                 if weatherportal.display_config["pause"]:
