@@ -1,4 +1,3 @@
-from flask.cli import with_appcontext
 from weatherportal.auth import login, login_required
 from flask import (
     Blueprint, flash, g, redirect, render_template, request, session, url_for
@@ -8,7 +7,6 @@ import logging as log
 
 bp = Blueprint('birthdays', __name__, url_prefix='/birthdays')
 
-@with_appcontext
 def get_birthdays():
     db = get_db()
     return db.execute(
