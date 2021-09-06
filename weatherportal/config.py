@@ -1,4 +1,5 @@
 from sqlite3.dbapi2 import IntegrityError, OperationalError
+from dateutil.tz.tz import tzlocal
 from flask import (
     Blueprint, flash, g, redirect, render_template, request, url_for, session
 )
@@ -31,14 +32,28 @@ def format_12hr(time_str):
 
 def get_current_schedules():
     db = get_db()
-    return db.execute(
-         """select * 
-                from schedules 
-            where start_day <= strftime('%w', date(CURRENT_DATE, 'localtime'))
-                    and time(start_time) <= time(CURRENT_TIME, 'localtime')
-                    and end_day >= strftime('%w', date(CURRENT_DATE, 'localtime'))
-                    and time(end_time) >= time(CURRENT_TIME, 'localtime');"""
-        ).fetchall()
+    schedules = db.execute("select * from schedules").fetchall()
+    current = []
+    now = datetime.datetime.now(tzlocal())
+    for schedule in schedules:
+        if schedule["start_day"] <= schedule["end_day"] and schedule["start_time"] <= schedule["end_time"]:
+            if (schedule["start_day"] <= int(now.strftime("%w")) <= schedule["end_day"] 
+                and datetime.time(schedule["start_time"]) <= datetime.time.now(tzlocal()) <= datetime.time(schedule["end_time"])):
+                current.append(schedule)
+        elif schedule["start_day"] <= schedule["end_day"] and schedule["start_time"] > schedule["end_time"]:
+            if (schedule["start_day"] <= int(now.strftime("%w")) <= schedule["end_day"] 
+                and (datetime.time(schedule["start_time"]) <= datetime.time.now(tzlocal()) or datetime.time.now(tzlocal()) <= datetime.time(schedule["end_time"]))):
+                current.append(schedule)
+        elif schedule["start_day"] > schedule["end_day"] and schedule["start_time"] <= schedule["end_time"]:
+            if ((schedule["start_day"] <= int(now.strftime("%w")) or int(now.strftime("%w")) <= schedule["end_day"])
+                and datetime.time(schedule["start_time"]) <= datetime.time.now(tzlocal()) <= datetime.time(schedule["end_time"])):
+                current.append(schedule)
+        elif schedule["start_day"] > schedule["end_day"] and schedule["start_time"] > schedule["end_time"]:
+            if ((schedule["start_day"] <= int(now.strftime("%w")) or int(now.strftime("%w")) <= schedule["end_day"])
+                and (datetime.time(schedule["start_time"]) <= datetime.time.now(tzlocal()) or datetime.time.now(tzlocal()) <= datetime.time(schedule["end_time"]))):
+                current.append(schedule)
+    return current
+
 
 @bp.route("/")
 @login_required
