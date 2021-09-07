@@ -25,6 +25,7 @@
     </label>
     <input class="w3-input" style="width:33%;" id="refreshbar" name="refresh" type="range" min="1" max="60" value="{{ display_config['refresh_delay'] }}" oninput="update_refresh(this);">
     <button class="w3-btn w3-blue-gray" onclick="save();">Update</button>
+    <button class="w3-btn w3-red" onclick="reboot();">Reboot</button>
     <img 
       class="w3-black w3-display-right" 
       src="{{ url_for('static', filename='examples/{}.png'.format(display_config['color'])) }}" 
@@ -50,6 +51,11 @@
         "refresh_delay": Number(document.getElementById("refreshbar").value)
       };
       http_put("{{ url_for('api.settings') }}", (res, type) => { window.location.reload(); }, JSON.stringify(to_save));
+    }
+
+    function reboot(){
+      if(confirm("Reboot the display?"))
+        http_get("{{ url_for('api.reboot') }}", (res, type) => {}, null);
     }
   </script>
 {% endblock %}

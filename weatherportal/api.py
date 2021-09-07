@@ -6,6 +6,7 @@ from werkzeug.exceptions import abort
 from weatherportal.auth import login_required
 from weatherportal.db import get_db
 from weatherportal.config import get_display_config, update_display_config
+import os, sys
 
 bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -23,3 +24,9 @@ def settings():
         if request_data is not None:
             update_display_config(**request_data)
     return jsonify(get_display_config())
+
+@bp.route("/reboot")
+@login_required
+def reboot():
+    os.system("sudo reboot")
+    sys.exit(0)
