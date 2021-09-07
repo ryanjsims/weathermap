@@ -319,6 +319,7 @@ def display(context: AppContext):
             with context:
                 display_config = get_display_config()
                 while not stop.wait(display_config["refresh_delay"]):
+                    display_config = get_display_config()
                     schedules = get_current_schedules()
                     if not all([schedule["enabled"] for schedule in schedules]):
                         canvas.Clear()
