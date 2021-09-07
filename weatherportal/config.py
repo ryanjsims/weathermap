@@ -80,8 +80,7 @@ def uin(orig, new):
 def update_display_config(size = None, lat = None, lon = None, z = None, color = None, options = None, dimensions = None, img_size = None, refresh_delay = None, pause = None):
     db = get_db()
     cfg = db.execute("select * from config;").fetchone()
-    db.execute("update config set (size, lat, lon, z, color, options, dimensions, img_size, refresh_delay, pause) = (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) where id = 1;",
-        (
+    to_update = (
             uin(cfg["size"], size), 
             uin(cfg["lat"], lat), 
             uin(cfg["lon"], lon), 
@@ -93,6 +92,9 @@ def update_display_config(size = None, lat = None, lon = None, z = None, color =
             uin(cfg["refresh_delay"], refresh_delay), 
             uin(cfg["pause"], pause)
         )
+    print(to_update)
+    db.execute("update config set (size, lat, lon, z, color, options, dimensions, img_size, refresh_delay, pause) = (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) where id = 1;",
+        to_update
     )
     db.commit()
 
