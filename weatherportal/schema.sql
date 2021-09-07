@@ -35,3 +35,20 @@ CREATE TABLE schedules (
   enabled BOOLEAN NOT NULL,
   FOREIGN KEY (user_id) REFERENCES users (id)
 );
+
+CREATE TABLE config (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  size INTEGER NOT NULL,
+  lat REAL NOT NULL,
+  lon REAL NOT NULL,
+  z INTEGER NOT NULL,
+  color INTEGER NOT NULL,
+  options TEXT NOT NULL,
+  dimensions INTEGER NOT NULL,
+  img_size INTEGER NOT NULL,
+  refresh_delay INTEGER NOT NULL,
+  pause BOOLEAN NOT NULL,
+);
+
+insert into config (size, lat, lon, z, color, options, dimensions, img_size, refresh_delay, pause) 
+            values (256, 33.317027, -111.875500, 9, 4, '0_0', 200000, 64, 5, false);

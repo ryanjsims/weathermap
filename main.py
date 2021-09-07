@@ -23,9 +23,9 @@ from dateutil.tz import tzlocal, tzutc
 import logging as log
 from logging.handlers import RotatingFileHandler
 import rgbmatrix
-import weatherportal
 from weatherportal.birthdays import get_birthdays
-from weatherportal.config import get_current_schedules
+from weatherportal.config import get_current_schedules, get_display_config
+from weatherportal import initialize_server
 
 MB = 1024 * 1024
 
@@ -161,7 +161,7 @@ def save_with_perms(path: str, image: Image.Image, username: str, groupname: str
     os.chmod(path, perms)
 
 
-def build_cache():
+def build_cache(context):
     finished = Event()
     cache_ready = Event()
     def task():
@@ -178,14 +178,16 @@ def build_cache():
             host = data["host"]
             for snapshot in data["radar"]["past"]:
                 path = snapshot["path"]
-                img = download(weatherportal.display_config)
+                with context:
+                    img = download(get_display_config())
                 save_with_perms("cache/" + str(snapshot["time"]) + ".png", img, "daemon", "daemon", 0o660)
                 timestamps.append(snapshot["time"])
                 if not cache_ready.is_set():
                     cache_ready.set()
             for nowcast in data["radar"]["nowcast"]:
                 path = nowcast["path"]
-                img = download(weatherportal.display_config)
+                with context:
+                    img = download(get_display_config())
                 save_with_perms("cache/nowcast/" + str(nowcast["time"]) + ".png", img, "daemon", "daemon", 0o660)
         except JSONDecodeError as e:
             log.error(__("Unable to decode weathermaps json: {}", e))
@@ -197,7 +199,7 @@ def build_cache():
     return finished, cache_ready, build_thread
 
 
-def update_cache():
+def update_cache(context):
     global host, path, last_update
     try:
         log.info("Updating cache...")
@@ -214,13 +216,15 @@ def update_cache():
             if snapshot["time"] in timestamps:
                 continue
             path = snapshot["path"]
-            img = download(weatherportal.display_config)
+            with context:
+                img = download(get_display_config())
             save_with_perms("cache/" + str(snapshot["time"]) + ".png", img, "daemon", "daemon", 0o660)
             timestamps.append(snapshot["time"])
             updates += 1
         for nowcast in data["radar"]["nowcast"]:
             path = nowcast["path"]
-            img = download(weatherportal.display_config)
+            with context:
+                img = download(get_display_config())
             save_with_perms("cache/nowcast/" + str(nowcast["time"]) + ".png", img, "daemon", "daemon", 0o660)
             updates += 1
         webtimestamps = [snapshot["time"] for snapshot in data["radar"]["past"]]
@@ -250,23 +254,27 @@ def get_cache():
         key = lambda item: item["path"])
 
 
-def grid_to_img(coord):
+def grid_to_img(coord, context: AppContext):
     to_return = [0, 0]
-    if coord[0] < weatherportal.display_config["img_size"][0]:
+    with context:
+        display_config = get_display_config()
+    if coord[0] < display_config["img_size"][0]:
         to_return = coord
     else:
-        to_return[0] = (weatherportal.display_config["img_size"][0] - 1) - (coord[0] % weatherportal.display_config["img_size"][0])
-        to_return[1] = (weatherportal.display_config["img_size"][1] - 1) - coord[1]
+        to_return[0] = (display_config["img_size"][0] - 1) - (coord[0] % display_config["img_size"][0])
+        to_return[1] = (display_config["img_size"][1] - 1) - coord[1]
     return tuple(to_return)        
 
 
-def img_to_grid(coord):
+def img_to_grid(coord, context: AppContext):
     to_return = [0, 0]
-    if coord[1] < (weatherportal.display_config["img_size"][1] // 2):
+    with context:
+        display_config = get_display_config()
+    if coord[1] < (display_config["img_size"][1] // 2):
         to_return = coord
     else:
-        to_return[0] = (weatherportal.display_config["img_size"][0] * 2 - 1) - coord[0]
-        to_return[1] = (weatherportal.display_config["img_size"][1] - 1) - coord[1]
+        to_return[0] = (display_config["img_size"][0] * 2 - 1) - coord[0]
+        to_return[1] = (display_config["img_size"][1] - 1) - coord[1]
     return tuple(to_return)
 
 # Draws part of an image defined by image_rect to the area of the canvas defined by 
@@ -274,7 +282,7 @@ def img_to_grid(coord):
 #   image_rect is a tuple of the form (left, upper, right, lower)
 #   canvas_topleft is a coordinate of the form (left, upper)
 def draw_image(canvas: rgbmatrix.FrameCanvas, canvas_lt: Tuple[int, int], 
-                img: Image.Image, image_rect: Tuple[int, int, int, int], filterAlpha=True):
+                img: Image.Image, image_rect: Tuple[int, int, int, int], context: AppContext, filterAlpha=True):
     if image_rect[2] - image_rect[0] < img.width or image_rect[3] - image_rect[1] < img.height:
         to_draw = img.crop(image_rect)
     else:
@@ -284,7 +292,7 @@ def draw_image(canvas: rgbmatrix.FrameCanvas, canvas_lt: Tuple[int, int],
             pixel = to_draw.getpixel((x, y))
             if len(pixel) == 4 and filterAlpha and pixel[3] == 0:
                 continue
-            i, j = img_to_grid((canvas_lt[0] + x, canvas_lt[1] + y))
+            i, j = img_to_grid((canvas_lt[0] + x, canvas_lt[1] + y), context)
             canvas.SetPixel(i, j, pixel[0], pixel[1], pixel[2])
 
 
@@ -308,8 +316,9 @@ def display(context: AppContext):
         canvas = matrix.CreateFrameCanvas()
         cake = Image.open("weatherportal/static/images/cake.png")
         try:
-            while not stop.wait(weatherportal.display_config["refresh_delay"]):
-                with context:
+            with context:
+                display_config = get_display_config()
+                while not stop.wait(display_config["refresh_delay"]):
                     schedules = get_current_schedules()
                     if not all([schedule["enabled"] for schedule in schedules]):
                         canvas.Clear()
@@ -317,39 +326,39 @@ def display(context: AppContext):
                         log.debug("Display off as scheduled")
                         continue
                     birthdays = get_birthdays()
-                if weatherportal.display_config["pause"]:
-                    continue
-                try:
-                    log.info(__("Updating display to {}", next["path"]))
+                    if display_config["pause"]:
+                        continue
                     try:
-                        img = Image.open(next["path"]).convert("RGB")
-                    except FileNotFoundError:
-                        log.error(__("File not found: {}", next["path"]))
-                        next = get_cache()[0]
-                        img = Image.open(next["path"]).convert("RGB")
-                    dt = datetime.fromtimestamp(int(next["path"].split(".")[0].split("/")[-1]), tz=tzutc()).astimezone(tzlocal())
-                    timestr = dt.strftime("%H:%M")
-                    datestr = dt.strftime("%m-%d")
-                    time.sleep(0.1)
-                    color = past_color
-                    if next["nowcast"]:
-                        color = future_color
-                    next = cache[(cache.index(next) + 1) % len(cache)]
-                    cache = get_cache()
-                    # for i in range(128):
-                    #     for j in range(32):
-                    #         pixel = img.getpixel(grid_to_img((i, j)))
-                    #         canvas.SetPixel(i, j, pixel[0], pixel[1], pixel[2])
-                    draw_image(canvas, (0, 0), img, (0, 0, 64, 64))
-                    graphics.DrawText(canvas, font, 2, 11, color, timestr)
-                    graphics.DrawText(canvas, font, 2, 17, color, datestr)
-                    if len(birthdays) > 0:
-                        draw_image(canvas, (2, 18), cake, (0, 0, 6, 6))
-                        graphics.DrawText(canvas, font, 10, 24, past_color, "HBD")
-                        graphics.DrawText(canvas, font, 2, 30, past_color, birthdays[0]["firstname"])
-                    canvas = matrix.SwapOnVSync(canvas)
-                except Exception as e:
-                    log.error(__("Display Error:\n{exc_info}", exc_info=e))
+                        log.info(__("Updating display to {}", next["path"]))
+                        try:
+                            img = Image.open(next["path"]).convert("RGB")
+                        except FileNotFoundError:
+                            log.error(__("File not found: {}", next["path"]))
+                            next = get_cache()[0]
+                            img = Image.open(next["path"]).convert("RGB")
+                        dt = datetime.fromtimestamp(int(next["path"].split(".")[0].split("/")[-1]), tz=tzutc()).astimezone(tzlocal())
+                        timestr = dt.strftime("%H:%M")
+                        datestr = dt.strftime("%m-%d")
+                        time.sleep(0.1)
+                        color = past_color
+                        if next["nowcast"]:
+                            color = future_color
+                        next = cache[(cache.index(next) + 1) % len(cache)]
+                        cache = get_cache()
+                        # for i in range(128):
+                        #     for j in range(32):
+                        #         pixel = img.getpixel(grid_to_img((i, j)))
+                        #         canvas.SetPixel(i, j, pixel[0], pixel[1], pixel[2])
+                        draw_image(canvas, (0, 0), img, (0, 0, 64, 64), context)
+                        graphics.DrawText(canvas, font, 2, 11, color, timestr)
+                        graphics.DrawText(canvas, font, 2, 17, color, datestr)
+                        if len(birthdays) > 0:
+                            draw_image(canvas, (2, 18), cake, (0, 0, 6, 6), context)
+                            graphics.DrawText(canvas, font, 10, 24, past_color, "HBD")
+                            graphics.DrawText(canvas, font, 2, 30, past_color, birthdays[0]["firstname"])
+                        canvas = matrix.SwapOnVSync(canvas)
+                    except Exception as e:
+                        log.error(__("Display Error:\n{exc_info}", exc_info=e))
         finally:
             matrix.Clear()
 
@@ -375,11 +384,11 @@ def remove_alpha(image: Image.Image, color: tuple=(255, 255, 255)):
 
 def main():
     log.info(__("Current working directory: {}", os.getcwd()))
-    server_thread = weatherportal.initialize_server(host="0.0.0.0")
+    server_thread = initialize_server(host="0.0.0.0")
     stop, matrix_thread = display(server_thread.ctx)
     try:
         server_thread.start()
-        finished, cache_ready, cache_thread = build_cache()
+        finished, cache_ready, cache_thread = build_cache(server_thread.app.app_context())
         cache_thread.start()
         while not cache_ready.wait(5):
             log.debug("Waiting on cache to build")
@@ -389,13 +398,13 @@ def main():
             while not finished.wait(5):
                 pass
             try:
-                with server_thread.app.app_context():
+                with server_thread.app.app_context() as ctx:
                     schedules = get_current_schedules()
                     if not all([schedule["enabled"] for schedule in schedules]):
                         log.debug("No cache update needed since display is off")
                         continue
-                updates = update_cache()
-                log.info(__("Updated cache ({} files affected)", updates))
+                    updates = update_cache(ctx)
+                    log.info(__("Updated cache ({} files affected)", updates))
             except Exception as e:
                 log.error(str(e))
     except KeyboardInterrupt:

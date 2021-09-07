@@ -3,7 +3,7 @@
 {% block header %}
   <h1>{% block title %}Schedules{% endblock %}</h1>
   {% if g.user %}
-    <a class="action" href="{{ url_for('config.create_schedule') }}">New</a>
+    <a class="w3-button" href="{{ url_for('config.create_schedule') }}"><i class="fa fa-plus fa-lg"></i></a>
   {% endif %}
 {% endblock %}
 

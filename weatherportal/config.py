@@ -1,7 +1,7 @@
 from sqlite3.dbapi2 import IntegrityError, OperationalError
 from dateutil.tz.tz import tzlocal
 from flask import (
-    Blueprint, flash, g, redirect, render_template, request, url_for, session
+    Blueprint, flash, g, redirect, render_template, request, url_for, session, jsonify
 )
 from werkzeug.exceptions import abort
 
@@ -54,6 +54,47 @@ def get_current_schedules():
                 current.append(schedule)
     return current
 
+def get_display_config():
+    db = get_db()
+    cfg = db.execute("select * from config;").fetchone()
+    to_return = {
+        "size": cfg["size"],
+        "lat": cfg["lat"],
+        "lon": cfg["lon"],
+        "z": cfg["z"],                                          #zoom level
+        "color": cfg["color"],                                  #Weather channel colors
+        "options": cfg["options"],                              #smoothed with no snow
+        "dimensions": (cfg["dimensions"], cfg["dimensions"]),   #dimensions of final image in meters
+        "img_size": (cfg["img_size"], cfg["img_size"]),         #Number of LEDs in matrix rows and columns
+        "refresh_delay": cfg["refresh_delay"],
+        "pause": cfg["pause"]
+    }
+    return to_return
+
+# Unchanged If None
+def uin(orig, new):
+    if new is not None:
+        return new
+    return orig
+
+def update_display_config(size = None, lat = None, lon = None, z = None, color = None, options = None, dimensions = None, img_size = None, refresh_delay = None, pause = None):
+    db = get_db()
+    cfg = db.execute("select * from config;").fetchone()
+    db.execute("update config set (size, lat, lon, z, color, options, dimensions, img_size, refresh_delay, pause) = (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) where id = 1;",
+        (
+            uin(cfg["size"], size), 
+            uin(cfg["lat"], lat), 
+            uin(cfg["lon"], lon), 
+            uin(cfg["z"], z), 
+            uin(cfg["color"], color), 
+            uin(cfg["options"], options), 
+            uin(cfg["dimensions"], dimensions), 
+            uin(cfg["img_size"], img_size), 
+            uin(cfg["refresh_delay"], refresh_delay), 
+            uin(cfg["pause"], pause)
+        )
+    )
+    db.commit()
 
 @bp.route("/")
 @login_required
@@ -62,10 +103,10 @@ def overview():
     schedules = db.execute("select * from schedules").fetchall()
     return render_template("config/index.html", schedules=schedules, days=days)
 
-@bp.route("/controls")
+@bp.route("/settings")
 @login_required
-def controls():
-    return render_template("config/controls.html")
+def settings():
+    return render_template("config/settings.html", display_config=get_display_config())
 
 @bp.route("/create_schedule", methods=["GET", "POST"])
 @login_required

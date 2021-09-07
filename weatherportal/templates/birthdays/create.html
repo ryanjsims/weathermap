@@ -6,16 +6,16 @@
 {% endblock %}
 
 {% block content %}
-  <form method="post">
-    <label for="user">User</label>
-    <select name="user">
+  <form class="w3-container" style="width:50%;" method="post">
+    <label class="w3-text-blue-gray" for="user"><b>User</b></label>
+    <select class="w3-input" name="user" required>
       <option value="">---SELECT A USER---</option>
       {% for user in users %}
       <option value="{{ user['id'] }}">{{ user['username'] }}</option>
       {% endfor %}
     </select>
-    <label for="date">Date of Birth</label>
-    <input type="date" name="date" id="date" required>
-    <input type="submit" value="Create">
+    <label class="w3-text-blue-gray" for="date"><b>Date of Birth</b></label>
+    <input class="w3-input" type="date" name="date" id="date" required>
+    <input class="w3-btn w3-blue-grey w3-section" type="submit" value="Create">
   </form>
 {% endblock %}

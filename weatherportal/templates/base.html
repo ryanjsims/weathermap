@@ -41,6 +41,12 @@
     <h5>Dashboard</h5>
   </div>
   <div class="w3-bar-block">
+    <span class="w3-bar-item w3-padding"><i class="fa fa-tools fa-fw"></i>  Display Controls</span>
+    <div class="w3-bar w3-center">
+      <button class="w3-button" onclick="pause();"><i class="fa fa-pause fa-lg w3-text-blue"></i></button>
+      <button class="w3-button" onclick="play();"><i class="fa fa-play fa-lg w3-text-green"></i></button>
+      <button class="w3-button"><i class="fa fa-step-forward fa-lg w3-text-black"></i></button>
+    </div>
     <a href="#" class="w3-bar-item w3-button w3-padding-16 w3-hide-large w3-dark-grey w3-hover-black" onclick="w3_close()" title="close menu"><i class="fa fa-remove fa-fw"></i>  Close Menu</a>
     {% for page in g.pagenav %}
       <a href="{{ url_for(page['endpoint']) }}" class="w3-bar-item w3-button w3-padding {{ 'w3-blue' if url_for(page['endpoint']) == url_for(request.endpoint) else '' }}"><i class="fa {{ page['icon'] }} fa-fw"></i>  {{ page['name'] }}</a>
@@ -114,5 +120,37 @@
   function remove_parent(elem) {
     elem.parentNode.remove();
   }
-  </script>
-  </body>
+
+  function http_put(url, callback, body) {
+    var request = new XMLHttpRequest();
+    request.onreadystatechange = function() {
+      if (request.readyState == 4 && request.status == 200 && callback){
+        callback(request.response, request.responseType);
+      }
+    }
+    request.open("PUT", url, true);
+    request.send(body);
+  }
+
+  function http_get(url, callback, body) {
+    var request = new XMLHttpRequest();
+    request.onreadystatechange = function() {
+      if (request.readyState == 4 && request.status == 200 && callback){
+        callback(request.response, request.responseType);
+      }
+    }
+    request.open("GET", url, true);
+    request.send(body);
+  }
+
+  function pause(){
+    url = "{{ url_for('api.pause', state=1) }}";
+    http_put(url, (res, type) => {}, null);
+  }
+
+  function play(){
+    url = "{{ url_for('api.pause', state=0) }}";
+    http_put(url, (res, type) => {}, null);
+  }
+</script>
+</body>

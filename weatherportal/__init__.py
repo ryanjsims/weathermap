@@ -4,18 +4,18 @@ from flask import Flask, g
 from threading import Thread
 from werkzeug.serving import make_server
 
-display_config = {
-    "size": 256,
-    "lat": 33.317027,
-    "lon": -111.875500,
-    "z": 9,                           #zoom level
-    "color": 4,                       #Weather channel colors
-    "options": "0_0",                 #smoothed with no snow
-    "dimensions": (200000, 200000),   #dimensions of final image in meters
-    "img_size": (64, 64),             #Number of LEDs in matrix rows and columns
-    "refresh_delay": 5,
-    "pause": False
-}
+#display_config = {
+#    "size": 256,
+#    "lat": 33.317027,
+#    "lon": -111.875500,
+#    "z": 9,                           #zoom level
+#    "color": 4,                       #Weather channel colors
+#    "options": "0_0",                 #smoothed with no snow
+#     "dimensions": (200000, 200000),   #dimensions of final image in meters
+#     "img_size": (64, 64),             #Number of LEDs in matrix rows and columns
+#     "refresh_delay": 5,
+#     "pause": False
+# }
 
 
 class ServerThread(Thread):
@@ -39,7 +39,6 @@ def create_app(test_config=None):
     app.config.from_mapping(
         SECRET_KEY='dev',
         DATABASE=os.path.join(app.instance_path, 'weatherportal.sqlite'),
-        DISPLAY_SETTINGS=None,
     )
 
     if test_config is None:
@@ -48,9 +47,6 @@ def create_app(test_config=None):
     else:
         # load the test config if passed in
         app.config.from_mapping(test_config)
-
-    if app.config["DISPLAY_SETTINGS"]:
-        display_config = app.config["DISPLAY_SETTINGS"]
 
     # ensure the instance folder exists
     try:
@@ -67,19 +63,22 @@ def create_app(test_config=None):
                 "name": "Schedules"
             },
             {
-                "endpoint": "config.controls",
-                "icon": "fa-tools",
-                "name": "Controls"
-            },
-            {
                 "endpoint": "birthdays.index",
                 "icon": "fa-birthday-cake",
                 "name": "Birthdays"
+            },
+            {
+                "endpoint": "config.settings",
+                "icon": "fa-image",
+                "name": "Image Settings"
             },
         ]
     
     from . import db
     db.init_app(app)
+
+    from . import api
+    app.register_blueprint(api.bp)
 
     from . import auth
     app.register_blueprint(auth.bp)

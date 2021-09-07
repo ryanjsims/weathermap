@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+
+{% block header %}
+  <h1><i class="fa fa-image"></i> {% block title %}Image Settings{% endblock %}</h1>
+{% endblock %}
+
+{% block content %}
+  <div class="w3-container w3-display-container">
+    <label class="w3-text-blue-gray" for="colorscheme"><b>Color Scheme</b></label>
+    <select class="w3-input" style="width:33%;" id="colorscheme" name="colorscheme" onchange="update_preview(this);">
+      <option value="0" {{ "selected" if display_config['color'] == 0 else "" }}>
+        Black and White dBZ values
+      </option>
+      <option value="1" {{ "selected" if display_config['color'] == 1 else "" }}>Rainviewer</option>
+      <option value="2" {{ "selected" if display_config['color'] == 2 else "" }}>Universal Blue</option>
+      <option value="3" {{ "selected" if display_config['color'] == 3 else "" }}>TITAN</option>
+      <option value="4" {{ "selected" if display_config['color'] == 4 else "" }}>The Weather Channel (Default)</option>
+      <option value="5" {{ "selected" if display_config['color'] == 5 else "" }}>Meteored</option>
+      <option value="6" {{ "selected" if display_config['color'] == 6 else "" }}>NEXRAD Level III</option>
+      <option value="7" {{ "selected" if display_config['color'] == 7 else "" }}>Rainbow @ SELEX-IS</option>
+      <option value="8" {{ "selected" if display_config['color'] == 8 else "" }}>Dark Sky</option>
+    </select>
+    <label class="w3-text-blue-gray" for="refresh">
+      <b>Refresh Delay (<span id="refreshdisplay">{{ display_config["refresh_delay"] }}</span> s)</b>
+    </label>
+    <input class="w3-input" style="width:33%;" id="refreshbar" name="refresh" type="range" min="1" max="60" value="{{ display_config['refresh_delay'] }}" oninput="update_refresh(this);">
+    <button class="w3-btn w3-blue-gray" onclick="save();">Update</button>
+    <img 
+      class="w3-black w3-display-right" 
+      src="{{ url_for('static', filename='examples/{}.png'.format(display_config['color'])) }}" 
+      id="colorpreview" 
+      style="width:40%; margin-right:10%; margin-top:10%;"
+    >
+  </div>
+  <script>
+    function update_preview(elem){
+      var preview = document.getElementById("colorpreview");
+      var url = "{{ url_for('static', filename='examples/') }}" + elem.value + ".png";
+      preview.setAttribute("src", url);
+    }
+
+    function update_refresh(elem){
+      var refresh = document.getElementById("refreshdisplay");
+      refresh.innerHTML = elem.value;
+    }
+
+    function save(){
+      var to_save = {
+        "color": Number(document.getElementById("colorscheme").value),
+        "refresh_delay": Number(document.getElementById("refreshbar").value)
+      };
+      http_put("{{ url_for('api.settings') }}", (res, type) => { window.location.reload(); }, JSON.stringify(to_save));
+    }
+  </script>
+{% endblock %}

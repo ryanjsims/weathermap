@@ -6,9 +6,9 @@
 {% endblock %}
 
 {% block content %}
-  <form method="post">
-    <label for="startday">Start Day</label>
-    <select name="startday">
+  <form class="w3-container" style="width:50%;" method="post">
+    <label class="w3-text-blue-gray" for="startday"><b>Start Day</b></label>
+    <select class="w3-input" name="startday">
       <option value="0">Sunday</option>
       <option value="1">Monday</option>
       <option value="2">Tuesday</option>
@@ -17,10 +17,10 @@
       <option value="5">Friday</option>
       <option value="6">Saturday</option>
     </select>
-    <label for="starttime">Start Time</label>
-    <input type="time" name="starttime" id="starttime" required>
-    <label for="endday">Ending Day</label>
-    <select name="endday">
+    <label class="w3-text-blue-gray" for="starttime"><b>Start Time</b></label>
+    <input class="w3-input" type="time" name="starttime" id="starttime" required>
+    <label class="w3-text-blue-gray" for="endday"><b>Ending Day</b></label>
+    <select class="w3-input" name="endday">
       <option value="0">Sunday</option>
       <option value="1">Monday</option>
       <option value="2">Tuesday</option>
@@ -29,13 +29,13 @@
       <option value="5">Friday</option>
       <option value="6">Saturday</option>
     </select>
-    <label for="endtime">Ending Time</label>
-    <input type="time" name="endtime" id="endtime" required>
-    <label for="state">Display State</label>
-    <select name="state">
+    <label class="w3-text-blue-gray" for="endtime"><b>Ending Time</b></label>
+    <input class="w3-input" type="time" name="endtime" id="endtime" required>
+    <label class="w3-text-blue-gray" for="state"><b>Display State</b></label>
+    <select class="w3-input" name="state">
       <option value="on">ON</option>
       <option value="off">OFF</option>
     </select>
-    <input type="submit" value="Create">
+    <input class="w3-btn w3-blue-grey w3-section" type="submit" value="Create">
   </form>
 {% endblock %}
