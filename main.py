@@ -16,7 +16,7 @@ import math
 import grp, pwd
 import sys
 from threading import Thread, Event
-from multiprocessing import Process
+from multiprocessing import Process, Value
 from rgbmatrix import RGBMatrix, RGBMatrixOptions, graphics
 from datetime import datetime
 from dateutil.tz import tzlocal, tzutc
@@ -344,7 +344,10 @@ def display(context: AppContext):
                         color = past_color
                         if next["nowcast"]:
                             color = future_color
-                        next = cache[(cache.index(next) + 1) % len(cache)]
+                        try:
+                            next = cache[(cache.index(next) + 1) % len(cache)]
+                        except ValueError:
+                            next = get_cache()[0]
                         cache = get_cache()
                         # for i in range(128):
                         #     for j in range(32):
