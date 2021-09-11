@@ -12,7 +12,7 @@ def get_birthdays():
     return db.execute(
          """select u.firstname, u.lastname, b.date 
                 from birthdays b 
-                join users u on b.user_id 
+                join users u on b.user_id = u.id
             where strftime('%m/%d', b.date) = strftime('%m/%d', datetime(CURRENT_DATE, 'localtime'));"""
         ).fetchall()
 
@@ -20,7 +20,7 @@ def get_birthdays():
 @login_required
 def birthdays():
     db = get_db()
-    birthdays = db.execute("select * from birthdays join users on birthdays.user_id;").fetchall()
+    birthdays = db.execute("select * from birthdays join users on birthdays.user_id = users.id;").fetchall()
     return render_template("birthdays/index.html", birthdays=birthdays)
 
 @bp.route("/delete/<id>")
@@ -41,5 +41,5 @@ def create():
         db.execute("insert into birthdays (user_id, date) values (?, datetime(?))", (id, date))
         db.commit()
         return redirect(url_for("birthdays.index"))
-    users = db.execute("select * from users join credentials on users.credential_id;").fetchall()
+    users = db.execute("select * from users join credentials on users.credential_id = credentials.id;").fetchall()
     return render_template("birthdays/create.html", users=users)
