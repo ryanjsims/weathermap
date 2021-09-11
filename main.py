@@ -327,10 +327,11 @@ def display(context: AppContext):
                     if not all([schedule["enabled"] for schedule in schedules]):
                         canvas.Clear()
                         canvas = matrix.SwapOnVSync(canvas)
-                        log.debug("Display off as scheduled")
+                        log.info("Display off as scheduled")
                         continue
                     birthdays = get_birthdays()
                     if display_config["pause"]:
+                        log.info("Paused")
                         continue
                     try:
                         log.info(__("Updating display to {}", next["path"]))
