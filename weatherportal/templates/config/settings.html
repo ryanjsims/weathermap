@@ -24,6 +24,13 @@
       <b>Refresh Delay (<span id="refreshdisplay">{{ display_config["refresh_delay"] }}</span> s)</b>
     </label>
     <input class="w3-input" style="width:33%;" id="refreshbar" name="refresh" type="range" min="1" max="60" value="{{ display_config['refresh_delay'] }}" oninput="update_refresh(this);">
+    
+    <div class="w3-margin-bottom">
+    <input class="w3-check" id="realtime" name="realtime" type="checkbox" {{ "checked" if display_config['realtime'] == 1 else "" }}>
+    <label class="w3-text-blue-gray" for="realtime">
+      <b>Show Real Time on Map</b>
+    </label>
+    </div>
     <button class="w3-btn w3-blue-gray" onclick="save();">Update</button>
     <button class="w3-btn w3-red" onclick="reboot();">Reboot</button>
     <img 
@@ -45,15 +52,20 @@
       refresh.innerHTML = elem.value;
     }
 
-    function save(){
+    function save(func){
+      if(typeof(func) == "undefined"){
+        func = (res, type) => { window.location.reload(); };
+      }
       var to_save = {
         "color": Number(document.getElementById("colorscheme").value),
-        "refresh_delay": Number(document.getElementById("refreshbar").value)
+        "refresh_delay": Number(document.getElementById("refreshbar").value),
+        "realtime": document.getElementById("realtime").checked
       };
-      http_put("{{ url_for('api.settings') }}", (res, type) => { window.location.reload(); }, JSON.stringify(to_save));
+      http_put("{{ url_for('api.settings') }}", func, JSON.stringify(to_save));
     }
 
     function reboot(){
+      save((res, type) => {});
       if(confirm("Reboot the display?"))
         http_get("{{ url_for('api.reboot') }}", (res, type) => {}, null);
     }

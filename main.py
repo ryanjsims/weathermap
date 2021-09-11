@@ -337,7 +337,10 @@ def display(context: AppContext):
                             log.error(__("File not found: {}", next["path"]))
                             next = get_cache()[0]
                             img = Image.open(next["path"]).convert("RGB")
-                        dt = datetime.fromtimestamp(int(next["path"].split(".")[0].split("/")[-1]), tz=tzutc()).astimezone(tzlocal())
+                        if display_config["realtime"]:
+                            dt = datetime.now(tzlocal())
+                        else:
+                            dt = datetime.fromtimestamp(int(next["path"].split(".")[0].split("/")[-1]), tz=tzutc()).astimezone(tzlocal())
                         timestr = dt.strftime("%H:%M")
                         datestr = dt.strftime("%m-%d")
                         time.sleep(0.1)
