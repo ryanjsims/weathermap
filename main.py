@@ -314,14 +314,11 @@ def display(context: AppContext):
         cache = get_cache()
         next = cache[0]
         canvas = matrix.CreateFrameCanvas()
-        log.info("Before cake")
         cake = Image.open("weatherportal/static/images/cake.png")
-        log.info("After cake")
         try:
             with context:
                 display_config = get_display_config()
                 while not stop.wait(display_config["refresh_delay"]):
-                    log.info("top of loop")
                     display_config = get_display_config()
                     schedules = get_current_schedules()
                     if not all([schedule["enabled"] for schedule in schedules]):
@@ -347,7 +344,6 @@ def display(context: AppContext):
                             dt = datetime.fromtimestamp(int(next["path"].split(".")[0].split("/")[-1]), tz=tzutc()).astimezone(tzlocal())
                         timestr = dt.strftime("%H:%M")
                         datestr = dt.strftime("%m-%d")
-                        print(timestr, datestr)
                         time.sleep(0.1)
                         color = past_color
                         if next["nowcast"]:
