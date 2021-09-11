@@ -13,7 +13,7 @@ def get_birthdays():
          """select u.firstname, u.lastname, b.date 
                 from birthdays b 
                 join users u on b.user_id = u.id
-            where strftime('%m/%d', b.date) = strftime('%m/%d', datetime(CURRENT_DATE, 'localtime'));"""
+            where strftime('%m/%d', b.date) = strftime('%m/%d', datetime('now', 'localtime'));"""
         ).fetchall()
 
 @bp.route("/", endpoint="index")
