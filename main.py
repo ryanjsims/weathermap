@@ -314,7 +314,9 @@ def display(context: AppContext):
         cache = get_cache()
         next = cache[0]
         canvas = matrix.CreateFrameCanvas()
+        log.info("Before cake")
         cake = Image.open("weatherportal/static/images/cake.png")
+        log.info("After cake")
         try:
             with context:
                 display_config = get_display_config()
