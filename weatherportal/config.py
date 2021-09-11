@@ -30,28 +30,25 @@ def format_12hr(time_str):
     time = parsetime(time_str)
     return time.strftime("%I:%M %p")
 
+# Create datetime offset from the start of the week by weekday days with the hours and minutes of time t
+#    Sunday is the first day of the week if sunday_is_zero is True (default)
+#    otherwise Monday is the first day of the week
+def from_dowt(weekday: int, t: datetime.time, sunday_is_zero=True):
+    now = datetime.datetime.now(tzlocal())
+    week_start = now - datetime.timedelta(days=(now.weekday() + 1 if sunday_is_zero else 0) % 7)
+    return (week_start + datetime.timedelta(days=weekday)).replace(hour=t.hour, minute=t.minute, second=0, microsecond=0)
+
 def get_current_schedules():
     db = get_db()
     schedules = db.execute("select * from schedules").fetchall()
     current = []
     now = datetime.datetime.now(tzlocal())
     for schedule in schedules:
-        if schedule["start_day"] <= schedule["end_day"] and schedule["start_time"] <= schedule["end_time"]:
-            if (schedule["start_day"] <= int(now.strftime("%w")) <= schedule["end_day"] 
-                and schedule["start_time"].time() <= now.time() <= schedule["end_time"].time()):
-                current.append(schedule)
-        elif schedule["start_day"] <= schedule["end_day"] and schedule["start_time"] > schedule["end_time"]:
-            if (schedule["start_day"] <= int(now.strftime("%w")) <= schedule["end_day"] 
-                and (schedule["start_time"].time() <= now.time() or now.time() <= schedule["end_time"].time())):
-                current.append(schedule)
-        elif schedule["start_day"] > schedule["end_day"] and schedule["start_time"] <= schedule["end_time"]:
-            if ((schedule["start_day"] <= int(now.strftime("%w")) or int(now.strftime("%w")) <= schedule["end_day"])
-                and schedule["start_time"].time() <= now.time() <= schedule["end_time"].time()):
-                current.append(schedule)
-        elif schedule["start_day"] > schedule["end_day"] and schedule["start_time"] > schedule["end_time"]:
-            if ((schedule["start_day"] <= int(now.strftime("%w")) or int(now.strftime("%w")) <= schedule["end_day"])
-                and (schedule["start_time"].time() <= now.time() or now.time() <= schedule["end_time"].time())):
-                current.append(schedule)
+        offset = 7 if schedule["end_day"] < schedule["start_day"] else 0
+        start = from_dowt(schedule["start_day"], schedule["start_time"].time())
+        end = from_dowt(schedule["end_day"] + offset, schedule["end_time"].time())
+        if start <= now <= end:
+            current.append(schedule)
     return current
 
 def get_display_config():
