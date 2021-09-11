@@ -343,6 +343,7 @@ def display(context: AppContext):
                             dt = datetime.fromtimestamp(int(next["path"].split(".")[0].split("/")[-1]), tz=tzutc()).astimezone(tzlocal())
                         timestr = dt.strftime("%H:%M")
                         datestr = dt.strftime("%m-%d")
+                        print(timestr, datestr)
                         time.sleep(0.1)
                         color = past_color
                         if next["nowcast"]:
