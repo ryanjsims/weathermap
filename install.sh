@@ -25,18 +25,6 @@ SECRET=$(tr -dc A-Za-z0-9\!\#$\&\(\)\"\*+,-./\:\\\\\;\<=\>\?@[]^_\`{\|}~ </dev/u
 echo "SECRET_KEY = '$SECRET'" >> $CONFIG
 SECRET=""
 echo "DATABASE = os.path.join(dir_path, 'weatherportal.sqlite')" >> $CONFIG
-echo "DISPLAY_SETTINGS = {" >> $CONFIG
-echo "    'size': 256," >> $CONFIG
-echo "    'lat': 33.317027," >> $CONFIG
-echo "    'lon': -111.875500," >> $CONFIG
-echo "    'z': 9,                           #zoom level" >> $CONFIG
-echo "    'color': 4,                       #Weather channel colors" >> $CONFIG
-echo "    'options': '0_0',                 #smoothed with no snow" >> $CONFIG
-echo "    'dimensions': (200000, 200000),   #dimensions of final image in meters" >> $CONFIG
-echo "    'img_size': (64, 64),             #Number of LEDs in matrix rows and columns" >> $CONFIG
-echo "    'refresh_delay': 5," >> $CONFIG
-echo "    'pause': False" >> $CONFIG
-echo "}" >> $CONFIG
 cd -
 
 echo "Setting permissions"
