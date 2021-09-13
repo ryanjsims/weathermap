@@ -6,7 +6,7 @@ from flask import (
 from werkzeug.exceptions import abort
 
 from weatherportal.auth import login_required
-from weatherportal.db import get_db
+from weatherportal.db import get_db, row_to_dict
 import datetime
 
 bp = Blueprint('config', __name__)
@@ -54,19 +54,9 @@ def get_current_schedules():
 def get_display_config():
     db = get_db()
     cfg = db.execute("select * from config;").fetchone()
-    to_return = {
-        "size": cfg["size"],
-        "lat": cfg["lat"],
-        "lon": cfg["lon"],
-        "z": cfg["z"],                                          #zoom level
-        "color": cfg["color"],                                  #Weather channel colors
-        "options": cfg["options"],                              #smoothed with no snow
-        "dimensions": (cfg["dimensions"], cfg["dimensions"]),   #dimensions of final image in meters
-        "img_size": (cfg["img_size"], cfg["img_size"]),         #Number of LEDs in matrix rows and columns
-        "refresh_delay": cfg["refresh_delay"],
-        "pause": cfg["pause"],
-        "realtime": cfg["realtime"]
-    }
+    to_return = row_to_dict(cfg)
+    to_return["dimensions"] = (cfg["dimensions"], cfg["dimensions"])
+    to_return["img_size"] = (cfg["img_size"], cfg["img_size"])
     return to_return
 
 # Unchanged If None

@@ -6,6 +6,12 @@ from flask import current_app, g
 from flask.cli import with_appcontext
 from typing import Optional
 
+def row_to_dict(row: sqlite3.Row):
+    to_return = {}
+    for key in row.keys():
+        to_return[key] = row[key]
+    return to_return
+
 
 def get_db() -> sqlite3.Connection:
     if 'db' not in g:
