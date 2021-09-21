@@ -1,12 +1,10 @@
 #!/usr/bin/python3.7
 
-from http import server
 from json.decoder import JSONDecodeError
-from http.client import RemoteDisconnected
 from typing import Tuple
+from itertools import cycle
 
 from flask.ctx import AppContext
-from weatherportal import birthdays
 import requests
 from PIL import Image
 from io import BytesIO
@@ -18,12 +16,13 @@ import sys
 from threading import Thread, Event
 from multiprocessing import Process, Value
 from rgbmatrix import RGBMatrix, RGBMatrixOptions, graphics
-from datetime import datetime
+from datetime import datetime, date
 from dateutil.tz import tzlocal, tzutc
 import logging as log
 from logging.handlers import RotatingFileHandler
 import rgbmatrix
 from weatherportal.birthdays import get_birthdays
+from weatherportal._holidays import get_holiday
 from weatherportal.config import get_current_schedules, get_display_config
 from weatherportal import initialize_server
 
@@ -296,14 +295,22 @@ def draw_image(canvas: rgbmatrix.FrameCanvas, canvas_lt: Tuple[int, int],
             canvas.SetPixel(i, j, pixel[0], pixel[1], pixel[2])
 
 
-def display(context: AppContext):
-    log.info("Initializing display...")
+def setup_matrix():
     options = RGBMatrixOptions()
     options.cols = 64
     options.rows = 32
     options.chain_length = 2
     options.gpio_slowdown = 2
-    matrix = RGBMatrix(options=options)
+    return RGBMatrix(options=options)
+
+
+def update_display():
+    pass
+
+
+def display(context: AppContext):
+    log.info("Initializing display...")
+    matrix = setup_matrix()
     stop = Event()
     def loop():
         log.info("Starting display...")
@@ -315,58 +322,75 @@ def display(context: AppContext):
         next = cache[0]
         canvas = matrix.CreateFrameCanvas()
         cake = Image.open("weatherportal/static/images/cake.png")
+        with context:
+            display_config = get_display_config()
         try:
-            with context:
-                display_config = get_display_config()
-                while not stop.wait(display_config["refresh_delay"]):
+            while not stop.wait(display_config["refresh_delay"]):
+                with context:
                     display_config = get_display_config()
                     schedules = get_current_schedules()
-                    if not all([schedule["enabled"] for schedule in schedules]):
-                        canvas.Clear()
-                        canvas = matrix.SwapOnVSync(canvas)
-                        log.info("Display off as scheduled")
-                        continue
                     birthdays = get_birthdays()
-                    if display_config["pause"]:
-                        log.info("Paused")
-                        continue
+                    holiday = get_holiday()
+                
+                if not all([schedule["enabled"] for schedule in schedules]):
+                    canvas.Clear()
+                    canvas = matrix.SwapOnVSync(canvas)
+                    log.debug("Display off as scheduled")
+                    continue
+                
+                if display_config["pause"]:
+                    log.debug("Paused")
+                    continue
+
+                if holiday is not None:
+                    holiday_img = Image.open(holiday["path"]).convert("RGB")
+
+                try:
+                    log.info(__("Updating display to {}", next["path"]))
                     try:
-                        log.info(__("Updating display to {}", next["path"]))
-                        try:
-                            img = Image.open(next["path"]).convert("RGB")
-                        except FileNotFoundError:
-                            log.error(__("File not found: {}", next["path"]))
-                            next = get_cache()[0]
-                            img = Image.open(next["path"]).convert("RGB")
-                        if display_config["realtime"]:
-                            dt = datetime.now(tzlocal())
-                        else:
-                            dt = datetime.fromtimestamp(int(next["path"].split(".")[0].split("/")[-1]), tz=tzutc()).astimezone(tzlocal())
-                        timestr = dt.strftime("%H:%M")
-                        datestr = dt.strftime("%m-%d")
+                        img = Image.open(next["path"]).convert("RGB")
+                    except FileNotFoundError:
+                        log.error(__("File not found: {}", next["path"]))
+                        next = get_cache()[0]
+                        img = Image.open(next["path"]).convert("RGB")
+                    finally:
+                        # Allow image time to load
                         time.sleep(0.1)
-                        color = past_color
-                        if next["nowcast"]:
-                            color = future_color
-                        try:
-                            next = cache[(cache.index(next) + 1) % len(cache)]
-                        except ValueError:
-                            next = get_cache()[0]
-                        cache = get_cache()
-                        # for i in range(128):
-                        #     for j in range(32):
-                        #         pixel = img.getpixel(grid_to_img((i, j)))
-                        #         canvas.SetPixel(i, j, pixel[0], pixel[1], pixel[2])
-                        draw_image(canvas, (0, 0), img, (0, 0, 64, 64), context)
-                        graphics.DrawText(canvas, font, 2, 11, color, timestr)
-                        graphics.DrawText(canvas, font, 2, 17, color, datestr)
-                        if len(birthdays) > 0:
-                            draw_image(canvas, (2, 18), cake, (0, 0, 6, 6), context)
-                            graphics.DrawText(canvas, font, 10, 24, past_color, "HBD")
-                            graphics.DrawText(canvas, font, 2, 30, past_color, birthdays[0]["firstname"])
-                        canvas = matrix.SwapOnVSync(canvas)
-                    except Exception as e:
-                        log.error(__("Display Error:\n{exc_info}", exc_info=e))
+                    
+                    if display_config["realtime"]:
+                        dt = datetime.now(tzlocal())
+                    else:
+                        dt = datetime.fromtimestamp(int(next["path"].split(".")[0].split("/")[-1]), tz=tzutc()).astimezone(tzlocal())
+                    timestr = dt.strftime("%H:%M")
+                    datestr = dt.strftime("%m-%d")
+
+                    color = future_color if next["nowcast"] else past_color
+
+                    try:
+                        next = cache[(cache.index(next) + 1) % len(cache)]
+                    except ValueError:
+                        next = get_cache()[0]
+                    
+                    cache = get_cache()
+                    draw_image(canvas, (0, 0), img, (0, 0, 64, 64), context)
+                    graphics.DrawText(canvas, font, 2, 11, color, timestr)
+                    graphics.DrawText(canvas, font, 2, 17, color, datestr)
+                    if len(birthdays) > 0:
+                        draw_image(canvas, (2, 18), cake, (0, 0, 6, 6), context)
+                        graphics.DrawText(canvas, font, 10, 24, past_color, "HBD")
+                        graphics.DrawText(canvas, font, 2, 30, past_color, birthdays[0]["firstname"])
+                    elif holiday:
+                        palette = [color for color in [holiday["color1"], holiday["color2"], holiday["color3"], holiday["color4"]] if color is not None]
+                        draw_image(canvas, (2, 18), holiday_img, (0, 0, holiday_img.width, holiday_img.height), context)
+                        if len(palette) > 0:
+                            i = 0
+                            for time_letter, date_letter, currcolor in zip(timestr, datestr, cycle(palette)):
+                                graphics.DrawText(canvas, font, 2 + 4 * i, 11, currcolor, time_letter)
+                                graphics.DrawText(canvas, font, 2 + 4 * i, 17, currcolor, date_letter)
+                                i += 1
+                    canvas = matrix.SwapOnVSync(canvas)
+                except Exception as e:
+                    log.error(__("Display Error:\n{exc_info}", exc_info=e))
         finally:
             matrix.Clear()
 

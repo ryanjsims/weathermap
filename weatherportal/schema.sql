@@ -88,24 +88,24 @@ insert into palette (color1, color2) values (0xE31C23, 0x00843E);
 --4th of July
 insert into palette (color1, color2, color3) values (0x3C3B6E, 0xFFFFFF, 0xB22234);
 --Mexican Independance day
-insert into palette (color1, color2, color3) values (0x3C3B6E, 0xFFFFFF, 0xB22234);
+insert into palette (color1, color2, color3) values (0x006847, 0xFFFFFF, 0xCE1126);
 --Thanksgiving
 insert into palette (color1, color2) values (0xBE5634, 0xDEBF7E);
 
-insert into holidays (name, message, path, palette_id) values ('New Year''s Day', '...in with the new!', './static/images/hourglass_full.png', NULL);
+insert into holidays (name, message, path, palette_id) values ('New Year''s Day', '...in with the new!', './weatherportal/static/images/hourglass_full.png', NULL);
 insert into holidays (name, message, path, palette_id) values ('Dr. Martin Luther King Jr./Civil Rights Day', 'MLK Jr. Day', NULL, NULL);
 insert into holidays (name, message, path, palette_id) values ('Chinese New Year', 'Lunar New Year', NULL, 3);
-insert into holidays (name, message, path, palette_id) values ('Valentine''s Day', 'Will you be my Valentine?', './static/images/heart.png', 4);
-insert into holidays (name, message, path, palette_id) values ('St. Patrick''s Day', 'It looks pretty Irish out there!', './static/images/clover.png', 5);
-insert into holidays (name, message, path, palette_id) values ('Easter Sunday', 'Happy Easter!', './static/images/cross.png', NULL);
-insert into holidays (name, message, path, palette_id) values ('Mother''s Day', 'Yay for Mom!', './static/images/heart.png', NULL);
-insert into holidays (name, message, path, palette_id) values ('Juneteenth National Independence Day', 'Juneteenth', './static/images/juneteenth.png', 6);
+insert into holidays (name, message, path, palette_id) values ('Valentine''s Day', 'Will you be my Valentine?', './weatherportal/static/images/heart.png', 4);
+insert into holidays (name, message, path, palette_id) values ('St. Patrick''s Day', 'It looks pretty Irish out there!', './weatherportal/static/images/clover.png', 5);
+insert into holidays (name, message, path, palette_id) values ('Easter Sunday', 'Happy Easter!', './weatherportal/static/images/cross.png', NULL);
+insert into holidays (name, message, path, palette_id) values ('Mother''s Day', 'Yay for Mom!', './weatherportal/static/images/heart.png', NULL);
+insert into holidays (name, message, path, palette_id) values ('Juneteenth National Independence Day', 'Juneteenth', './weatherportal/static/images/juneteenth.png', 6);
 insert into holidays (name, message, path, palette_id) values ('Independence Day', 'America the Beautiful', NULL, 7);
 insert into holidays (name, message, path, palette_id) values ('Día de la Independencia', '¡Viva Mexico!', NULL, 8);
-insert into holidays (name, message, path, palette_id) values ('Halloween', 'Trick or Treat?', './static/images/pumpkin.png', 2);
-insert into holidays (name, message, path, palette_id) values ('Día de los Muertos', 'Dia de los Muertos', './static/images/skull.png', NULL);
+insert into holidays (name, message, path, palette_id) values ('Halloween', 'Trick or Treat?', './weatherportal/static/images/pumpkin.png', 2);
+insert into holidays (name, message, path, palette_id) values ('Día de los Muertos', 'Dia de los Muertos', './weatherportal/static/images/skull.png', NULL);
 insert into holidays (name, message, path, palette_id) values ('Veterans Day', 'Celebrate our Veterans', NULL, NULL);
 insert into holidays (name, message, path, palette_id) values ('Thanksgiving', 'What are you thankful for?', NULL, 9);
-insert into holidays (name, message, path, palette_id) values ('Christmas Eve', NULL, './static/images/christmas_tree.png', 1);
-insert into holidays (name, message, path, palette_id) values ('Christmas Day', 'Ho ho ho!', './static/images/christmas.png', 1);
-insert into holidays (name, message, path, palette_id) values ('New Year''s Eve', 'Out with the old...', './static/images/hourglass_empty.png', NULL);
+insert into holidays (name, message, path, palette_id) values ('Christmas Eve', NULL, './weatherportal/static/images/christmas_tree.png', 1);
+insert into holidays (name, message, path, palette_id) values ('Christmas Day', 'Ho ho ho!', './weatherportal/static/images/christmas.png', 1);
+insert into holidays (name, message, path, palette_id) values ('New Year''s Eve', 'Out with the old...', './weatherportal/static/images/hourglass_empty.png', NULL);

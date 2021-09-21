@@ -8,7 +8,37 @@ from dateutil.easter import easter
 from holidays.constants import FRI, SAT, SUN
 from holidays.constants import JAN, FEB, MAR, MAY, JUN, JUL, SEP, OCT, NOV, DEC
 
-class WeatherportalHolidays(UnitedStates):
+from .db import get_db, row_to_dict
+
+calendar = None
+
+
+def get_holiday():
+    global calendar
+    if calendar is None:
+        calendar = Holidays(state='AZ', observed=False)
+    holiday = calendar.get(date.today())
+    if holiday is None:
+        return None
+    
+    get_rgb = lambda hexcolor: (hexcolor >> 16, (hexcolor >> 8) & 0xFF, hexcolor & 0xFF)
+
+    db = get_db()
+    info = row_to_dict(db.execute(
+        """
+        select 
+            name, message, path, color1, color2, color3, color4 
+        from holidays h left join palette p on h.palette_id = p.id where h.name = ?;
+        """, 
+        (holiday,)
+    ).fetchone())
+    for column in ["color" + str(i) for i in range(1, 5)]:
+        if info[column] is not None:
+            info[column] = get_rgb(info[column])
+    return info
+
+
+class Holidays(UnitedStates):
     def _populate(self, year):
         # New Year's Day
         if year > 1870:
@@ -119,7 +149,7 @@ def escape_quote(s: str):
     return s
 
 if __name__ == "__main__":
-    h = WeatherportalHolidays(state="AZ")
+    h = Holidays(state="AZ")
     h._populate(2022)
     h.observed = False
     for key, value in sorted(list(h.items())):
