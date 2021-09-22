@@ -363,7 +363,10 @@ def display(context: AppContext):
                         delta = datetime.fromtimestamp(int(next["path"].split(".")[0].split("/")[-1]), tz=tzutc()).astimezone(tzlocal()) - dt
                         hours = (delta.days * 24) + math.ceil(delta.seconds / 3600)
                         minutes = ((delta.days * 24 * 60) + delta.seconds // 60) - hours * 60
-                        sign = "-" if hours < 0 or minutes < 0 else "+"
+                        sign = "-" if (hours * 60 + minutes) < 0 else "+"
+                        if minutes < 0 and hours > 0:
+                            minutes = hours * 60 + minutes
+                            hours = 0
                     else:
                         dt = datetime.fromtimestamp(int(next["path"].split(".")[0].split("/")[-1]), tz=tzutc()).astimezone(tzlocal())
                     timestr = dt.strftime("%H:%M" + "{}{:d}:{:02}".format(sign, abs(hours), abs(minutes)) if display_config["realtime"] else "")
