@@ -359,9 +359,9 @@ def display(context: AppContext):
                         time.sleep(0.1)
                     
                     if display_config["realtime"]:
-                        dt = datetime.now(tzlocal())
-                        delta = datetime.fromtimestamp(int(next["path"].split(".")[0].split("/")[-1]), tz=tzutc()).astimezone(tzlocal()) - datetime.now(tzlocal())
-                        minutes = (delta.days * 24 * 60) + (delta.seconds // 60)
+                        dt = datetime.now(tzlocal()).replace(second=0, microsecond=0)
+                        delta = datetime.fromtimestamp(int(next["path"].split(".")[0].split("/")[-1]), tz=tzutc()).astimezone(tzlocal()) - dt
+                        minutes = (delta.days * 24 * 60) + delta.seconds // 60
                     else:
                         dt = datetime.fromtimestamp(int(next["path"].split(".")[0].split("/")[-1]), tz=tzutc()).astimezone(tzlocal())
                     timestr = dt.strftime("%H:%M" + "{:+d}".format(minutes) if display_config["realtime"] else "")
