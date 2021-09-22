@@ -361,10 +361,12 @@ def display(context: AppContext):
                     if display_config["realtime"]:
                         dt = datetime.now(tzlocal()).replace(second=0, microsecond=0)
                         delta = datetime.fromtimestamp(int(next["path"].split(".")[0].split("/")[-1]), tz=tzutc()).astimezone(tzlocal()) - dt
-                        minutes = (delta.days * 24 * 60) + delta.seconds // 60
+                        hours = (delta.days * 24) + math.ceil(delta.seconds / 3600)
+                        minutes = ((delta.days * 24 * 60) + delta.seconds // 60) - hours * 60
+                        sign = "-" if hours < 0 or minutes < 0 else "+"
                     else:
                         dt = datetime.fromtimestamp(int(next["path"].split(".")[0].split("/")[-1]), tz=tzutc()).astimezone(tzlocal())
-                    timestr = dt.strftime("%H:%M" + "{:+d}".format(minutes) if display_config["realtime"] else "")
+                    timestr = dt.strftime("%H:%M" + "{}{:d}:{:02}".format(sign, abs(hours), abs(minutes)) if display_config["realtime"] else "")
                     datestr = dt.strftime("%m-%d")
 
                     color = future_color if next["nowcast"] else past_color
