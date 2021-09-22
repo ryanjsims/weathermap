@@ -87,7 +87,7 @@ insert into palette (color1, color2) values (0x148E48, 0xF77E33);
 --Juneteenth
 insert into palette (color1, color2) values (0xE31C23, 0x00843E);
 --4th of July
-insert into palette (color1, color2, color3) values (0x3C3B6E, 0xFFFFFF, 0xB22234);
+insert into palette (color1, color2, color3) values (0xB22234, 0xFFFFFF, 0x3C3B6E);
 --Mexican Independance day
 insert into palette (color1, color2, color3) values (0x006847, 0xFFFFFF, 0xCE1126);
 --Thanksgiving

@@ -360,9 +360,11 @@ def display(context: AppContext):
                     
                     if display_config["realtime"]:
                         dt = datetime.now(tzlocal())
+                        delta = datetime.fromtimestamp(int(next["path"].split(".")[0].split("/")[-1]), tz=tzutc()).astimezone(tzlocal()) - datetime.now(tzlocal())
+                        minutes = (delta.days * 24 * 60) + (delta.seconds // 60)
                     else:
                         dt = datetime.fromtimestamp(int(next["path"].split(".")[0].split("/")[-1]), tz=tzutc()).astimezone(tzlocal())
-                    timestr = dt.strftime("%H:%M")
+                    timestr = dt.strftime("%H:%M" + "{:+d}".format(minutes) if display_config["realtime"] else "")
                     datestr = dt.strftime("%m-%d")
 
                     color = future_color if next["nowcast"] else past_color
