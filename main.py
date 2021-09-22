@@ -381,7 +381,7 @@ def display(context: AppContext):
                         graphics.DrawText(canvas, font, 10, 24, past_color, "HBD")
                         graphics.DrawText(canvas, font, 2, 30, past_color, birthdays[0]["firstname"])
                     elif holiday:
-                        palette = [color for color in [holiday["color1"], holiday["color2"], holiday["color3"], holiday["color4"]] if color is not None]
+                        palette = [graphics.Color(*color) for color in [holiday["color1"], holiday["color2"], holiday["color3"], holiday["color4"]] if color is not None]
                         if holiday_img:
                             draw_image(canvas, (2, 18), holiday_img, (0, 0, holiday_img.width, holiday_img.height), context)
                         if len(palette) > 0:
