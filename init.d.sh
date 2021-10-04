@@ -11,4 +11,4 @@
 ### END INIT INFO
 
 cd /var/local/weathermap
-/usr/bin/python3 weathermap.py
+/usr/bin/python3 weathermap.py &
