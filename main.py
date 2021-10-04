@@ -369,7 +369,7 @@ def display(context: AppContext):
                             hours = 0
                     else:
                         dt = datetime.fromtimestamp(int(next["path"].split(".")[0].split("/")[-1]), tz=tzutc()).astimezone(tzlocal())
-                    timestr = dt.strftime("%H:%M" + "{}{:d}:{:02}".format(sign, abs(hours), abs(minutes)) if display_config["realtime"] else "")
+                    timestr = dt.strftime("%H:%M" + ("{}{:d}:{:02}".format(sign, abs(hours), abs(minutes)) if display_config["realtime"] else ""))
                     datestr = dt.strftime("%m-%d")
 
                     color = future_color if next["nowcast"] else past_color
