@@ -61,7 +61,7 @@ log.basicConfig(
     format="[{asctime}] [{levelname}]: {message}", 
     datefmt="%Y-%m-%d %H:%M:%S %Z", 
     style='{',
-    handlers=[RedirectingRotatingFileHandler("/var/log/weathermap.log", maxBytes=25*MB, backupCount=5, redirectstderr=True, redirectstdout=True)]
+    handlers=[RedirectingRotatingFileHandler("/var/log/weathermap/weathermap.log", maxBytes=25*MB, backupCount=5, redirectstderr=True, redirectstdout=True)]
 )
 
 host = ""

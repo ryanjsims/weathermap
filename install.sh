@@ -9,6 +9,7 @@ mkdir /var/local/weathermap >> $LOGFILE 2>&1
 mkdir /var/local/weathermap/cache >> $LOGFILE 2>&1
 mkdir /var/local/weathermap/cache/nowcast >> $LOGFILE 2>&1
 mkdir /var/local/weathermap/fonts >> $LOGFILE 2>&1
+mkdir /var/log/weathermap >> $LOGFILE 2>&1
 
 echo "Copying files..."
 cp fonts/4x6.bdf /var/local/weathermap/fonts >> $LOGFILE 2>&1
@@ -29,7 +30,17 @@ cd -
 
 echo "Setting permissions"
 chgrp -R daemon /var/local/weathermap >> $LOGFILE 2>&1
-chmod -R 775 /var/local/weathermap >> $LOGFILE 2>&1
+chgrp -R daemon /var/log/weathermap >> $LOGFILE 2>&1
+# Change directory perms to 775
+find /var/local/weathermap -type d -exec chmod 775 {} \;
+# Change file perms to 664
+find /var/local/weathermap -type f -exec chmod 664 {} \;
+# On logging directory set gid bit so all files created have the same group
+#   Will make all logs have daemon group
+chmod 2775 /var/log/weathermap >> $LOGFILE 2>&1
+# Set default perms mask to 775 for directories and 664 for files in logging directory
+#   Will make daemon able to RW log files
+setfacl -d -m g::rwX /var/log/weathermap >> $LOGFILE 2>&1
 chmod +x /etc/init.d/weathermap >> $LOGFILE 2>&1
 chmod 660 $CONFIG
 
