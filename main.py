@@ -61,7 +61,7 @@ log.basicConfig(
     format="[{asctime}] [{levelname}]: {message}", 
     datefmt="%Y-%m-%d %H:%M:%S %Z", 
     style='{',
-    handlers=[RedirectingRotatingFileHandler("/var/log/weathermap.log", maxBytes=25*MB, backupCount=5, redirectstderr=True, redirectstdout=True)]
+    handlers=[RedirectingRotatingFileHandler("/var/log/weathermap.log", maxBytes=25*1000, backupCount=5, redirectstderr=False, redirectstdout=False)]
 )
 
 host = ""
@@ -241,8 +241,8 @@ def update_cache(context):
         log.error("Unable to decode weathermaps json: " + str(e))
     except ConnectionError as e:
         log.error("Connection error: " + str(e))
-    except Exception as e:
-        log.error(str(e))
+    #except Exception as e:
+    #    log.error(str(e))
     return 0
 
 
@@ -400,6 +400,7 @@ def display(context: AppContext):
                     canvas = matrix.SwapOnVSync(canvas)
                 except Exception as e:
                     log.error(__("Display Error:\n{exc_info}", exc_info=e))
+                    raise e
         finally:
             matrix.Clear()
 
@@ -448,10 +449,11 @@ def main():
                     log.info(__("Updated cache ({} files affected)", updates))
             except Exception as e:
                 log.error(str(e))
+                raise e
     except KeyboardInterrupt:
         log.info("Caught ctrl-c, exiting...")
-    except Exception as e:
-        log.error(str(e))
+    #except Exception as e:
+    #    log.error(str(e))
     finally:
         stop()
         server_thread.shutdown()
