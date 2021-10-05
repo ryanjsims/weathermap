@@ -369,7 +369,8 @@ def display(context: AppContext):
                             hours = 0
                     else:
                         dt = datetime.fromtimestamp(int(next["path"].split(".")[0].split("/")[-1]), tz=tzutc()).astimezone(tzlocal())
-                    timestr = dt.strftime("%H:%M" + ("{}{:d}:{:02}".format(sign, abs(hours), abs(minutes)) if display_config["realtime"] else ""))
+                    timestr = dt.strftime("%H:%M")
+                    deltastr = ("{}{:d}:{:02}".format(sign, abs(hours), abs(minutes)) if display_config["realtime"] else "")
                     datestr = dt.strftime("%m-%d")
 
                     color = future_color if next["nowcast"] else past_color
@@ -381,8 +382,9 @@ def display(context: AppContext):
                     
                     cache = get_cache()
                     draw_image(canvas, (0, 0), img, (0, 0, 64, 64), context)
-                    graphics.DrawText(canvas, font, 2, 11, color, timestr)
-                    graphics.DrawText(canvas, font, 2, 17, color, datestr)
+                    graphics.DrawText(canvas, font, 2, 11, color, datestr)
+                    graphics.DrawText(canvas, font, 2, 17, color, timestr)
+                    graphics.DrawText(canvas, font, 2, 23, color, deltastr)
                     if len(birthdays) > 0:
                         draw_image(canvas, (2, 18), cake, (0, 0, 6, 6), context)
                         graphics.DrawText(canvas, font, 10, 24, past_color, "HBD")

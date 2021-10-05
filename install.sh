@@ -2,6 +2,7 @@
 LOGFILE="install.log"
 export FLASK_APP=weatherportal
 CONFIG="/var/local/weathermap/instance/config.py"
+VERSION="$(git rev-parse HEAD)"
 
 echo "Creating directory structure"
 cp init.d.sh /etc/init.d/weathermap > $LOGFILE 2>&1
@@ -26,6 +27,7 @@ SECRET=$(tr -dc A-Za-z0-9\!\#$\&\(\)\"\*+,-./\:\\\\\;\<=\>\?@[]^_\`{\|}~ </dev/u
 echo "SECRET_KEY = '$SECRET'" >> $CONFIG
 SECRET=""
 echo "DATABASE = os.path.join(dir_path, 'weatherportal.sqlite')" >> $CONFIG
+echo "VERSION = '$VERSION'"
 cd -
 
 echo "Setting permissions"

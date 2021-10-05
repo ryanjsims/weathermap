@@ -35,7 +35,8 @@ def init_db():
 
     with current_app.open_resource('schema.sql') as f:
         db.executescript(f.read().decode('utf8'))
-
+        db.execute("update config set version = ? where id = 1;", (current_app.config['VERSION'],))
+        db.commit()
 
 @click.command('init-db')
 @with_appcontext
@@ -44,6 +45,28 @@ def init_db_command():
     init_db()
     click.echo('Initialized the database.')
 
+def update_db():
+    db = get_db()
+    current_version = db.execute("select version from config;").fetchone()["version"]
+    if current_version != current_app.config['VERSION']:
+        with current_app.open_resource('update_schema.sql') as f:
+            db.executescript(f.read().decode('utf8'))
+            db.execute("update config set version = ? where id = 1;", (current_app.config['VERSION'],))
+            db.commit()
+            return True
+    return False
+
+
+@click.command('update-db')
+@with_appcontext
+def update_db_command():
+    """Clear the existing data and create new tables."""
+    if update_db():
+        click.echo('Updated the database schema.')
+    else:
+        click.echo("No update needed.")
+
 def init_app(app):
     app.teardown_appcontext(close_db)
     app.cli.add_command(init_db_command)
+    app.cli.add_command(update_db_command)

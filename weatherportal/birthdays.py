@@ -1,6 +1,6 @@
-from weatherportal.auth import login, login_required
+from weatherportal.auth import login, login_required, create_dummy
 from flask import (
-    Blueprint, flash, g, redirect, render_template, request, session, url_for
+    Blueprint, flash, g, redirect, render_template, request, session, url_for, escape
 )
 from weatherportal.db import get_db
 import logging as log
@@ -36,7 +36,13 @@ def delete(id):
 def create():
     db = get_db()
     if request.method == "POST":
-        id = int(request.form["user"])
+        id = request.form["user"]
+        if id == "new":
+            firstname = escape(request.form["firstname"])
+            lastname = escape(request.form["lastname"])
+            id = create_dummy(firstname.lower() + lastname.lower(), firstname, lastname)
+        else:
+            id = int(id)
         date = request.form["date"]
         db.execute("insert into birthdays (user_id, date) values (?, datetime(?))", (id, date))
         db.commit()

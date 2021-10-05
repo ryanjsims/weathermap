@@ -9,7 +9,7 @@ DROP TABLE IF EXISTS holidays;
 CREATE TABLE credentials (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   username TEXT UNIQUE NOT NULL,
-  password TEXT NOT NULL
+  password TEXT
 );
 
 CREATE TABLE users (
@@ -51,7 +51,8 @@ CREATE TABLE config (
   img_size INTEGER NOT NULL,
   refresh_delay INTEGER NOT NULL,
   pause BOOLEAN NOT NULL,
-  realtime BOOLEAN NOT NULL
+  realtime BOOLEAN NOT NULL,
+  version TEXT NOT NULL
 );
 
 CREATE TABLE palette (
@@ -71,8 +72,8 @@ CREATE TABLE holidays (
   FOREIGN KEY (palette_id) REFERENCES palette (id)
 );
 
-insert into config (size, lat, lon, z, color, options, dimensions, img_size, refresh_delay, pause, realtime) 
-            values (256, 33.317027, -111.875500, 9, 4, '0_0', 200000, 64, 5, false, false);
+insert into config (size, lat, lon, z, color, options, dimensions, img_size, refresh_delay, pause, realtime, version) 
+            values (256, 33.317027, -111.875500, 9, 4, '0_0', 200000, 64, 5, false, false, '');
 
 --Christmas
 insert into palette (color1, color2) values (0xE40A2D, 0x1FD537);

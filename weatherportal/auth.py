@@ -11,6 +11,33 @@ import logging as log
 bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 
+def create_dummy(username, firstname, lastname):
+    db = get_db()
+    user_id = None
+    try:
+        db.execute("INSERT INTO credentials (username, password) VALUES (?, ?)",
+            (username, None)
+        )
+        credential_id = db.execute("SELECT * FROM credentials where username = ?", 
+            (username,)
+        ).fetchone()["id"]
+        db.execute("INSERT INTO users (credential_id, firstname, lastname) VALUES (?, ?, ?)",
+            (credential_id, firstname, lastname)
+        )
+        user_id = db.execute("SELECT * FROM users where credential_id = ?", 
+            (credential_id,)
+        ).fetchone()["id"]
+        db.commit()
+    except db.IntegrityError:
+        db.rollback()
+        log.error("Attempted duplicate registration of username " + username)
+    except db.OperationalError as e:
+        db.rollback()
+        log.error(repr(e))
+    finally:
+        return user_id
+
+
 @bp.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == 'POST':
@@ -62,8 +89,8 @@ def login():
         db = get_db()
         error = None
         user = db.execute("SELECT * FROM credentials where username = ?", (username,)).fetchone()
-        if user is None or not check_password_hash(user['password'], password):
-            error = "Incorrect login details, please try again later"
+        if user is None or user['password'] is None or not check_password_hash(user['password'], password):
+            error = "Incorrect login details, please try again"
         
         if error is None:
             session.clear()

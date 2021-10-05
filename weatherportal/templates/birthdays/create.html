@@ -8,14 +8,44 @@
 {% block content %}
   <form class="w3-container" style="width:50%;" method="post">
     <label class="w3-text-blue-gray" for="user"><b>User</b></label>
-    <select class="w3-input" name="user" required>
+    <select class="w3-input" name="user" id="user" required onchange="check_visibility();">
       <option value="">---SELECT A USER---</option>
       {% for user in users %}
       <option value="{{ user['id'] }}">{{ user['username'] }}</option>
       {% endfor %}
+      <option value="new">New...</option>
     </select>
+    <label class="w3-text-blue-gray custom-user" for="firstname"><b>First Name</b></label>
+    <input class="w3-input custom-user" name="firstname" id="firstname">
+    <label class="w3-text-blue-gray custom-user" for="lastname"><b>Last Name</b></label>
+    <input class="w3-input custom-user" name="lastname" id="lastname">
     <label class="w3-text-blue-gray" for="date"><b>Date of Birth</b></label>
     <input class="w3-input" type="date" name="date" id="date" required>
     <input class="w3-btn w3-blue-grey w3-section" type="submit" value="Create">
   </form>
+  <style>
+    :root {
+      --custom-display: none;
+    }
+    .custom-user {
+      display: var(--custom-display);
+    }
+  </style>
+  <script>
+    function check_visibility(){
+      var firstname = document.getElementById("firstname");
+      var lastname = document.getElementById("lastname");
+      var userselection = document.getElementById("user");
+      if(userselection.value === "new"){
+        document.documentElement.style.setProperty("--custom-display", "initial");
+        firstname.setAttribute("required", "");
+        lastname.setAttribute("required", "");
+      }
+      else {
+        document.documentElement.style.setProperty("--custom-display", "none");
+        firstname.removeAttribute("required");
+        lastname.removeAttribute("required");
+      }
+    }
+  </script>
 {% endblock %}
