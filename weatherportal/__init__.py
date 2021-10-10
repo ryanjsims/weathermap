@@ -47,7 +47,7 @@ class ServerThread(Thread):
         self.app = app
 
     def run(self):
-        drop_privileges(uid_name='daemon', gid_name='daemon')
+        #drop_privileges(uid_name='daemon', gid_name='daemon')
         log.info("Starting web server...")
         self.srv.serve_forever()
 

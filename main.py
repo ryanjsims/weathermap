@@ -164,7 +164,7 @@ def build_cache(context):
     finished = Event()
     cache_ready = Event()
     def task():
-        drop_privileges(uid_name='daemon', gid_name='daemon')
+        #drop_privileges(uid_name='daemon', gid_name='daemon')
         log.info("Building cache...")
         global host, path, last_update
         for file in scantree("cache"):
