@@ -1,4 +1,4 @@
-import os
+import os, grp, pwd
 import logging as log
 from flask import Flask, g
 from threading import Thread
@@ -18,6 +18,26 @@ from werkzeug.serving import make_server
 # }
 
 
+def drop_privileges(uid_name='nobody', gid_name='nogroup'):
+    if os.getuid() != 0:
+        # We're not root so, like, whatever dude
+        return
+
+    # Get the uid/gid from the name
+    running_uid = pwd.getpwnam(uid_name).pw_uid
+    running_gid = grp.getgrnam(gid_name).gr_gid
+
+    # Remove group privileges
+    os.setgroups([])
+
+    # Try setting the new uid/gid
+    os.setgid(running_gid)
+    os.setuid(running_uid)
+
+    ## Ensure a very conservative umask
+    #old_umask = os.umask(0o22)
+
+
 class ServerThread(Thread):
     def __init__(self, host, port, app):
         super().__init__()
@@ -27,6 +47,7 @@ class ServerThread(Thread):
         self.app = app
 
     def run(self):
+        drop_privileges(uid_name='daemon', gid_name='daemon')
         log.info("Starting web server...")
         self.srv.serve_forever()
 

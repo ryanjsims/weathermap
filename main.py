@@ -24,7 +24,7 @@ import rgbmatrix
 from weatherportal.birthdays import get_birthdays
 from weatherportal._holidays import get_holiday
 from weatherportal.config import get_current_schedules, get_display_config
-from weatherportal import initialize_server
+from weatherportal import initialize_server, drop_privileges
 
 MB = 1024 * 1024
 
@@ -164,6 +164,7 @@ def build_cache(context):
     finished = Event()
     cache_ready = Event()
     def task():
+        drop_privileges(uid_name='daemon', gid_name='daemon')
         log.info("Building cache...")
         global host, path, last_update
         for file in scantree("cache"):
@@ -309,10 +310,9 @@ def update_display():
 
 
 def display(context: AppContext):
-    log.info("Initializing display...")
-    matrix = setup_matrix()
     stop = Event()
     def loop():
+        matrix = setup_matrix()
         log.info("Starting display...")
         font = graphics.Font()
         font.LoadFont("fonts/4x6.bdf")
