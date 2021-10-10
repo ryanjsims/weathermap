@@ -384,7 +384,6 @@ def display(context: AppContext):
                     draw_image(canvas, (0, 0), img, (0, 0, 64, 64), context)
                     graphics.DrawText(canvas, font, 2, 11, color, datestr)
                     graphics.DrawText(canvas, font, 2, 17, color, timestr)
-                    graphics.DrawText(canvas, font, 2, 23, color, deltastr)
                     if len(birthdays) > 0:
                         draw_image(canvas, (2, 18), cake, (0, 0, 6, 6), context)
                         graphics.DrawText(canvas, font, 10, 24, past_color, "HBD")
@@ -395,10 +394,14 @@ def display(context: AppContext):
                             draw_image(canvas, (2, 18), holiday_img, (0, 0, holiday_img.width, holiday_img.height), context)
                         if len(palette) > 0:
                             i = 0
-                            for time_letter, date_letter, currcolor in zip(timestr, datestr, cycle(palette)):
-                                graphics.DrawText(canvas, font, 2 + 4 * i, 11, currcolor, time_letter)
-                                graphics.DrawText(canvas, font, 2 + 4 * i, 17, currcolor, date_letter)
+                            for time_letter, date_letter, delta_letter, currcolor in zip(timestr, datestr, deltastr, cycle(palette)):
+                                graphics.DrawText(canvas, font, 2 + 4 * i, 11, currcolor, date_letter)
+                                graphics.DrawText(canvas, font, 2 + 4 * i, 17, currcolor, time_letter)
+                                if not holiday_img:
+                                    graphics.DrawText(canvas, font, 2 + 4 * i, 23, currcolor, delta_letter)
                                 i += 1
+                    elif display_config["realtime"]:
+                        graphics.DrawText(canvas, font, 2, 23, color, deltastr)
                     canvas = matrix.SwapOnVSync(canvas)
                 except Exception as e:
                     log.error(__("Display Error:\n{exc_info}", exc_info=e))
