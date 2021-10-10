@@ -9,6 +9,12 @@
 # Short-Description: Display weathermap on boot
 # Description:       Displays a weathermap on the connected led grid
 ### END INIT INFO
-
 cd /var/local/weathermap
-/usr/bin/python3 weathermap.py &
+if [ "$1" == "start" ]; then 
+    /usr/bin/python3 weathermap.py &
+    echo $! > pid_file
+elif [ "$1" == "stop" ]; then
+    xargs -a pid_file kill
+    rm pid_file
+    /usr/bin/python3 clear.py
+fi
