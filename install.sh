@@ -15,6 +15,7 @@ mkdir /var/log/weathermap >> $LOGFILE 2>&1
 echo "Copying files..."
 cp fonts/4x6.bdf /var/local/weathermap/fonts >> $LOGFILE 2>&1
 cp main.py /var/local/weathermap/weathermap.py >> $LOGFILE 2>&1
+cp clear.py /var/local/weathermap/clear.py >> $LOGFILE 2>&1
 cp -r weatherportal /var/local/weathermap/ >> $LOGFILE 2>&1
 
 echo "Initializing instance files"
