@@ -127,6 +127,7 @@ def download(config: dict) -> Image.Image:
     images = [{"coords": coords, "image": None} for coords in to_download]
 
     def helper(coords):
+        log.debug("Downloading from " + tileXYURL.format(**globals(), x=coords[0], y=coords[1], **config))
         r = requests.get(tileXYURL.format(**globals(), x=coords[0], y=coords[1], **config))
         image = BytesIO()
         for chunk in r:

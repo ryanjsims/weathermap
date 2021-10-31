@@ -1,6 +1,6 @@
 from rgbmatrix import RGBMatrix, RGBMatrixOptions
 
-def setup_matrix():
+def setup_matrix() -> RGBMatrix:
     options = RGBMatrixOptions()
     options.cols = 64
     options.rows = 32

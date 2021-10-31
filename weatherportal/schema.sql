@@ -93,6 +93,8 @@ insert into palette (color1, color2, color3) values (0xB22234, 0xFFFFFF, 0x3C3B6
 insert into palette (color1, color2, color3) values (0x006847, 0xFFFFFF, 0xCE1126);
 --Thanksgiving
 insert into palette (color1, color2) values (0xBE5634, 0xDEBF7E);
+--Dia de los Muertos
+insert into palette (color1, color2) values (0xFFD700, 0xA020F0);
 
 insert into holidays (name, message, path, palette_id) values ('New Year''s Day', '...in with the new!', './weatherportal/static/images/hourglass_full.png', NULL);
 insert into holidays (name, message, path, palette_id) values ('Dr. Martin Luther King Jr./Civil Rights Day', 'MLK Jr. Day', NULL, NULL);
@@ -105,7 +107,7 @@ insert into holidays (name, message, path, palette_id) values ('Juneteenth Natio
 insert into holidays (name, message, path, palette_id) values ('Independence Day', 'America the Beautiful', NULL, 7);
 insert into holidays (name, message, path, palette_id) values ('Día de la Independencia', '¡Viva Mexico!', NULL, 8);
 insert into holidays (name, message, path, palette_id) values ('Halloween', 'Trick or Treat?', './weatherportal/static/images/pumpkin.png', 2);
-insert into holidays (name, message, path, palette_id) values ('Día de los Muertos', 'Dia de los Muertos', './weatherportal/static/images/skull.png', NULL);
+insert into holidays (name, message, path, palette_id) values ('Día de los Muertos', 'Dia de los Muertos', './weatherportal/static/images/skull.png', 10);
 insert into holidays (name, message, path, palette_id) values ('Veterans Day', 'Celebrate our Veterans', NULL, NULL);
 insert into holidays (name, message, path, palette_id) values ('Thanksgiving', 'What are you thankful for?', NULL, 9);
 insert into holidays (name, message, path, palette_id) values ('Christmas Eve', NULL, './weatherportal/static/images/christmas_tree.png', 1);
