@@ -3,6 +3,9 @@
 from json.decoder import JSONDecodeError
 from typing import Tuple
 from itertools import cycle
+import xml.etree.ElementTree as ET
+from xml.etree.ElementTree import ParseError as XMLParseError
+from dateutil.parser import parse
 
 from flask.ctx import AppContext
 import requests
@@ -13,6 +16,7 @@ import os
 import math
 import grp, pwd
 import sys
+import json
 from threading import Thread, Event
 from multiprocessing import Process, Value
 from rgbmatrix import RGBMatrix, RGBMatrixOptions, graphics
@@ -71,6 +75,10 @@ mapsURL = "https://api.rainviewer.com/public/weather-maps.json"
 tileURL = "{host}{path}/{size}/{z}/{lat}/{lon}/{color}/{options}.png"
 tileXYURL = "{host}{path}/{size}/{z}/{x}/{y}/{color}/{options}.png"
 
+noaaCapabilitiesURL = "https://opengeo.ncep.noaa.gov/geoserver/conus/conus_bref_qcd/ows?service=wms&version=1.3.0&request=GetCapabilities"
+noaaDataURL = "https://opengeo.ncep.noaa.gov"
+noaaDataPath = "/geoserver/conus/conus_bref_qcd/ows?service=wms&version=1.3.0&request=GetMap&width=64&height=64&layers=conus_bref_qcd&format=image/png&bbox={lonW},{latS},{lonE},{latN}&transparent=true&bgcolor=0x0&time="
+
 zoom2res = [156543.00, 78271.52, 39135.76, 19567.88, 9783.94, 
         4891.97, 2445.98, 1222.99, 611.4962, 305.7481, 152.8741, 
         76.437, 38.2185, 19.1093, 9.5546, 4.7773, 2.3887, 1.1943,
@@ -87,6 +95,26 @@ def scantree(path):
         else:
             yield entry
 
+def get_point_at_distance(lat1: float, lon1: float, d: float, bearing: float, R: float=6371.0):
+    """
+    lat: initial latitude, in degrees
+    lon: initial longitude, in degrees
+    d: target distance from initial
+    bearing: (true) heading in degrees
+    R: optional radius of sphere, defaults to mean radius of earth
+
+    Returns new lat/lon coordinate {d}km from initial, in degrees
+    """
+    lat1 = math.radians(lat1)
+    lon1 = math.radians(lon1)
+    a = math.radians(bearing)
+    lat2 = math.asin(math.sin(lat1) * math.cos(d/R) + math.cos(lat1) * math.sin(d/R) * math.cos(a))
+    lon2 = lon1 + math.atan2(
+        math.sin(a) * math.sin(d/R) * math.cos(lat1),
+        math.cos(d/R) - math.sin(lat1) * math.sin(lat2)
+    )
+    return (math.degrees(lat2), math.degrees(lon2),)
+
 
 def deg2num(lat_deg, lon_deg, zoom, dec = []):
     assert 0 <= zoom <= 22, "Use a zoom level between 0 and 22, inclusive"
@@ -100,6 +128,8 @@ def deg2num(lat_deg, lon_deg, zoom, dec = []):
 
 
 def download(config: dict) -> Image.Image:
+    if host == noaaDataURL:
+        return download_noaa(config)
     dec = []
     to_download = []
     x, y = deg2num(config["lat"], config["lon"], config["z"], dec)
@@ -154,12 +184,108 @@ def download(config: dict) -> Image.Image:
     combined.close()
     return resized
 
+# NOAA hosts a GIS WMS at https://opengeo.ncep.noaa.gov/geoserver/conus/conus_bref_qcd/ows that can provide radar imagery
+def download_noaa(config: dict) -> Image.Image:
+    global host, path
+    latN, _ = get_point_at_distance(config["lat"], config["lon"], config["dimensions"][0] / 2000, 0)
+    _, lonE = get_point_at_distance(config["lat"], config["lon"], config["dimensions"][0] / 2000, 90)
+    latS, _ = get_point_at_distance(config["lat"], config["lon"], config["dimensions"][0] / 2000, 180)
+    _, lonW = get_point_at_distance(config["lat"], config["lon"], config["dimensions"][0] / 2000, 270)
+
+    response = requests.get(host + path.format(latN=latN, lonE=lonE, latS=latS, lonW=lonW))
+    if response.status_code != 200:
+        return Image.new("RGBA", (64, 64), (8, 8, 0, 255))
+    return Image.open(BytesIO(response.content))
 
 def save_with_perms(path: str, image: Image.Image, username: str, groupname: str, perms: int):
     image.save(path)
     os.chown(path, pwd.getpwnam(username).pw_uid, grp.getgrnam(groupname).gr_gid)
     os.chmod(path, perms)
 
+
+def get_map_info_rainviewer() -> dict:
+    global last_update
+    r = requests.get(mapsURL)
+    data = r.json()
+
+    last_update = data["generated"]
+    return data
+
+# return format:
+# {
+#   "code": status_code
+#   "host": "https://www.example.com",
+#   "generated": "timestamp"
+#   "radar": {
+#       "past": [
+#           {
+#               "time": <unix timestamp>,
+#               "path": "/blah?params=values"
+#           }
+#       ],
+#       "nowcast": [
+#           {
+#               "time": <unix timestamp>,
+#               "path": "/blah?params=values"
+#           }
+#       ],
+#   }
+# }
+def get_map_info_noaa() -> dict:
+    log.info("Getting map info from NOAA...")
+    r = requests.get(noaaCapabilitiesURL)
+    if r.status_code != 200:
+        log.error(__("get_map_info_noaa: {} - {}", r.status_code, r.content))
+        return {
+            "code": r.status_code,
+            "generated": "",
+            "host": "",
+            "radar": {
+                "past": [],
+                "nowcast": [],
+            },
+        }
+    log.info("Parsing XML...")
+    root = ET.fromstring(r.content)
+    schema = "{" + root.attrib[root.keys()[2]].split()[0] + "}"
+    capability = root.find(schema + "Capability")
+    root_layer = capability.find(schema + "Layer")
+    bref_layer = root_layer.find(schema + "Layer")
+    dimensions = bref_layer.findall(schema + "Dimension")
+    time = None
+    for dim in dimensions:
+        if dim.attrib.get("name") != "time":
+            continue
+        time = dim
+        break
+    if time is None or len(time.text) == 0:
+        log.error("get_map_info_noaa: time not available")
+        return {
+            "code": 422,
+            "host": "",
+            "radar": {
+                "past": [],
+                "nowcast": [],
+            },
+        }
+    log.info("Found time dimension")
+    times = time.text.split(",")
+    to_return = {
+        "code": r.status_code,
+        "host": noaaDataURL,
+        "generated": times[-1],
+        "radar": {
+            "past": [
+                {
+                    "time": int(parse(t).timestamp()),
+                    "path": noaaDataPath + t,
+                } for t in times
+            ],
+            "nowcast": [],
+        },
+    }
+    log.info(__("returning data: {}", json.dumps(to_return, indent=4)))
+    return to_return
 
 def build_cache(context):
     finished = Event()
@@ -171,9 +297,11 @@ def build_cache(context):
             if file.is_file():
                 os.remove(file.path)
         try:
-            r = requests.get(mapsURL)
-            data = r.json()
-
+            data = get_map_info_noaa()
+            if "code" in data and data["code"] != 200:
+                log.error(__("failed to build cache: code {}", data["code"]))
+                return
+            log.info(__("got data {}", json.dumps(data, indent=2)))
             last_update = data["generated"]
             host = data["host"]
             for snapshot in data["radar"]["past"]:
@@ -191,6 +319,10 @@ def build_cache(context):
                 save_with_perms("cache/nowcast/" + str(nowcast["time"]) + ".png", img, "daemon", "daemon", 0o660)
         except JSONDecodeError as e:
             log.error(__("Unable to decode weathermaps json: {}", e))
+        except XMLParseError as e:
+            log.error(__("Unable to decode NOAA XML: {}", e))
+        except Exception as e:
+            log.exception("Error building cache:")
         finally:
             finished.set()
             log.info("Built cache")
@@ -203,8 +335,9 @@ def update_cache(context):
     global host, path, last_update
     try:
         log.info("Updating cache...")
-        r = requests.get(mapsURL)
-        data = r.json()
+        data = get_map_info_noaa()
+        if "code" in data and data["code"] != 200:
+            return
         if data["generated"] == last_update:
             return 0
         updates = 0
